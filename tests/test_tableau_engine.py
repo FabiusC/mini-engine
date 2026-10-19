@@ -1,5 +1,3 @@
-import json
-
 import pandas as pd
 import pytest
 
@@ -7,7 +5,7 @@ from tableau_engine.core.dag_runner import DAGRunner
 from tableau_engine.interfaces.text import TextInterface
 
 
-def test_runner_orders_dependencies_and_exports_generic_ast() -> None:
+def test_runner_orders_dependencies_and_returns_node_results() -> None:
 	left = pd.DataFrame({"Segment": ["consumer"]})
 	right = pd.DataFrame({"Segment": ["corporate"]})
 	plan = [
@@ -29,13 +27,8 @@ def test_runner_orders_dependencies_and_exports_generic_ast() -> None:
 
 	runner = DAGRunner({"left": left, "right": right}, plan, outputs=["normalized"])
 	context = runner.run()
-	ast = runner.to_ast_dict()
 
 	assert context["normalized"]["Segment"].tolist() == ["CONSUMER", "CORPORATE"]
-	assert [node["id"] for node in ast["nodes"]] == ["combined", "normalized"]
-	assert ast["nodes"][0]["inputs"] == [{"ref": "left"}, {"ref": "right"}]
-	assert ast["outputs"] == [{"ref": "normalized"}]
-	json.dumps(ast)
 
 
 def test_runner_rejects_cycles() -> None:

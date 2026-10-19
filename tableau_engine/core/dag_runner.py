@@ -124,33 +124,3 @@ class DAGRunner:
 			if missing_outputs:
 				raise ValueError(f"Unknown DAG output node(s): {missing_outputs}")
 		return self.dag_nodes
-
-	def to_ast_dict(self) -> dict[str, object]:
-		"""Export a generic call/reference AST without using it for execution."""
-		outputs = self.outputs or self._terminal_node_ids()
-		return {
-			"format": "mini-engine.ast",
-			"version": 1,
-			"nodes": [
-				{
-					"id": node["id"],
-					"type": "call",
-					"category": node.get("category"),
-					"operation": node.get("operation"),
-					"inputs": [{"ref": input_id} for input_id in node.get("inputs", [])],
-					"arguments": node.get("params", {}),
-				}
-				for node in self._ordered_plan
-			],
-			"outputs": [{"ref": node_id} for node_id in outputs],
-		}
-
-	def _terminal_node_ids(self) -> tuple[str, ...]:
-		consumed = {
-			input_id
-			for node in self._ordered_plan
-			for input_id in node.get("inputs", [])
-		}
-		return tuple(
-			node["id"] for node in self._ordered_plan if node["id"] not in consumed
-		)

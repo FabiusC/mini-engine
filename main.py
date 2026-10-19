@@ -9,7 +9,7 @@ from tableau_engine.core.dag_runner import DAGRunner
 
 
 def main() -> None:
-	"""Run the category-based DAG directly and export its generic AST."""
+	"""Run the category-based DAG directly and save its output dataframe."""
 	project_root = Path(__file__).resolve().parent
 	dag_path = project_root / "pipeline.dag.json"
 	dag_definition = json.loads(dag_path.read_text(encoding="utf-8"))
