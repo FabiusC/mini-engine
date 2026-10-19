@@ -1,50 +1,38 @@
 # mini-engine
 
-## DAG y AST
+## Arquitectura
 
-`pipeline.dag.json` es la definición editable del DAG; `main.py` la carga y resuelve
-las rutas relativas desde la raíz del proyecto. Cada nodo declara `id`, `operation`,
-`inputs` y `parameters`. Edita ahí la operación o sus parámetros y vuelve a ejecutar
-`python main.py` para generar `pipeline.ast.json` y procesar los datos.
+`pipeline.dag.json` define el DAG con nodos que declaran `category`, `operation`,
+`inputs` y `params`. `main.py` carga el JSON y `DAGRunner` recorre las dependencias
+en orden topológico, despachando cada nodo a la interfaz de su categoría. La ejecución
+no depende del AST; `pipeline.ast.json` se genera como representación genérica para
+inspección o consumo por otras herramientas.
 
-El AST usa llamadas genéricas con referencias explícitas (`{"ref": "node_id"}`),
-orden topológico y lista de salidas, por lo que puede inspeccionarse o consumirse sin
-instanciar objetos Python del proyecto. La API también permite editar el DAG desde
-Python; `to_ast()` compila el AST y `PipelineAST.run()` lo ejecuta:
+Las operaciones atómicas viven en `tableau_engine/functions/` y sus routers en
+`tableau_engine/interfaces/`. Cada categoría tiene dos funciones:
 
-```python
-from src.engine import DAG
+- `io`: `LOAD_CSV`, `SAVE_CSV`
+- `text`: `UPPER`, `LOWER`
+- `numeric`: `CEILING`, `FLOOR`
+- `dates`: `PARSE`, `DATE_PART`
+- `casting`: `CHANGE_TYPE`, `TO_NUMERIC`
+- `structural`: `JOIN`, `UNION`
 
-dag = DAG()
-dag.add_node("orders", "load_csv", filepath="data/orders_south_2018.csv")
-dag.add_node(
-	"normalize_segment",
-	"transform_string",
-	inputs=("orders",),
-	column="Segment",
-	method="upper",
-)
+Para cambiar el pipeline, edita el nodo correspondiente en `pipeline.dag.json`. Por
+ejemplo, cambia `operation` de `UPPER` a `LOWER` para pasar `Segment` a minúsculas.
+Para cambiar la normalización, edita `operation` a `LOWER`. Cada nodo usa solo
+operaciones de su categoría, y las conexiones se cambian editando sus IDs en `inputs`.
 
-# Cambia los parámetros conservando las conexiones.
-dag.update_operation(
-	"normalize_segment",
-	"transform_string",
-	column="Segment",
-	method="lower",
-)
-# O reemplaza la operación del nodo sin reconstruir el resto del DAG.
-dag.update_operation(
-	"normalize_segment",
-	"filter_data",
-	column="Segment",
-	operator="==",
-	value="Consumer",
-)
-pipeline_ast = dag.to_ast()
-result = pipeline_ast.run()
+La estructura JSON del DAG es versionada y portable; las rutas relativas se resuelven
+desde la raíz del proyecto. La exportación AST usa llamadas con referencias explícitas
+como `{"ref": "combined_orders"}` y puede generarse sin utilizarse para ejecutar.
+
+## Ejecución
+
+```bash
+python -m pip install -r requirements.txt
+python main.py
 ```
 
-Usa `dag.set_inputs(node_id, inputs)` para cambiar las conexiones. El DAG valida que
-las referencias existan y rechaza ciclos. Las operaciones disponibles por defecto
-son `load_csv`, `join_datasets`, `union_datasets`, `aggregate_data`, `drop_columns`,
-`filter_data` y `transform_string`.
+El resultado se escribe en `output/processed_orders.csv`; la representación AST se
+escribe en `pipeline.ast.json`.

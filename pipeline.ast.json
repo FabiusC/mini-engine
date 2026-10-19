@@ -5,7 +5,8 @@
     {
       "id": "south_orders",
       "type": "call",
-      "operation": "load_csv",
+      "category": "io",
+      "operation": "LOAD_CSV",
       "inputs": [],
       "arguments": {
         "filepath": "data/orders_south_2018.csv"
@@ -14,7 +15,8 @@
     {
       "id": "central_orders",
       "type": "call",
-      "operation": "load_csv",
+      "category": "io",
+      "operation": "LOAD_CSV",
       "inputs": [],
       "arguments": {
         "filepath": "data/Orders_Central.csv"
@@ -23,7 +25,8 @@
     {
       "id": "combined_orders",
       "type": "call",
-      "operation": "union_datasets",
+      "category": "structural",
+      "operation": "UNION",
       "inputs": [
         {
           "ref": "south_orders"
@@ -37,21 +40,36 @@
     {
       "id": "normalized_segment",
       "type": "call",
-      "operation": "transform_string",
+      "category": "text",
+      "operation": "UPPER",
       "inputs": [
         {
           "ref": "combined_orders"
         }
       ],
       "arguments": {
-        "column": "Segment",
-        "method": "upper"
+        "column": "Segment"
+      }
+    },
+    {
+      "id": "saved_orders",
+      "type": "call",
+      "category": "io",
+      "operation": "SAVE_CSV",
+      "inputs": [
+        {
+          "ref": "normalized_segment"
+        }
+      ],
+      "arguments": {
+        "filepath": "output/processed_orders.csv",
+        "index": false
       }
     }
   ],
   "outputs": [
     {
-      "ref": "normalized_segment"
+      "ref": "saved_orders"
     }
   ]
 }

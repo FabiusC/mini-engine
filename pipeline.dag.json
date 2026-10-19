@@ -1,45 +1,60 @@
 {
-  "format": "mini-engine.dag",
+  "format": "tableau-engine.dag",
   "version": 1,
   "nodes": [
     {
       "id": "south_orders",
-      "operation": "load_csv",
+      "category": "io",
+      "operation": "LOAD_CSV",
       "inputs": [],
-      "parameters": {
+      "params": {
         "filepath": "data/orders_south_2018.csv"
       }
     },
     {
       "id": "central_orders",
-      "operation": "load_csv",
+      "category": "io",
+      "operation": "LOAD_CSV",
       "inputs": [],
-      "parameters": {
+      "params": {
         "filepath": "data/Orders_Central.csv"
       }
     },
     {
       "id": "combined_orders",
-      "operation": "union_datasets",
+      "category": "structural",
+      "operation": "UNION",
       "inputs": [
         "south_orders",
         "central_orders"
       ],
-      "parameters": {}
+      "params": {}
     },
     {
       "id": "normalized_segment",
-      "operation": "transform_string",
+      "category": "text",
+      "operation": "UPPER",
       "inputs": [
         "combined_orders"
       ],
-      "parameters": {
-        "column": "Segment",
-        "method": "upper"
+      "params": {
+        "column": "Segment"
+      }
+    },
+    {
+      "id": "saved_orders",
+      "category": "io",
+      "operation": "SAVE_CSV",
+      "inputs": [
+        "normalized_segment"
+      ],
+      "params": {
+        "filepath": "output/processed_orders.csv",
+        "index": false
       }
     }
   ],
   "outputs": [
-    "normalized_segment"
+    "saved_orders"
   ]
 }
