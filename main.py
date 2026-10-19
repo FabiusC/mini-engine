@@ -1,40 +1,32 @@
-"""Example pipeline that combines and normalizes the supplied order data."""
+"""Compile and execute the DAG declared in pipeline.dag.json."""
 
 from pathlib import Path
 
 import pandas as pd
 
-from src.engine import PipelineEngine
-from src.operations import load_csv, transform_string, union_datasets
-
-
-def _union_with_right_dataset(
-	df_left: pd.DataFrame, df_right: pd.DataFrame
-) -> pd.DataFrame:
-	"""Adapt the union operation to the engine's current-dataframe interface."""
-	return union_datasets([df_left, df_right])
+from src.engine import DAG
 
 
 def main() -> None:
-	"""Load both CSVs, run the pipeline, and write the processed result."""
+	"""Load the DAG JSON, export its AST, and write the processed data."""
 	project_root = Path(__file__).resolve().parent
-	south_data = load_csv(project_root / "data" / "orders_south_2018.csv")
-	central_data = load_csv(project_root / "data" / "Orders_Central.csv")
-
-	engine = PipelineEngine(south_data)
-	engine.add_step("union datasets", _union_with_right_dataset, central_data)
-	engine.add_step("uppercase segment", transform_string, "Segment", "upper")
-	result = engine.run()
+	dag_path = project_root / "pipeline.dag.json"
+	dag = DAG.from_json(dag_path.read_text(encoding="utf-8"), base_dir=project_root)
+	pipeline_ast = dag.to_ast()
+	result = pipeline_ast.run()
+	if not isinstance(result, pd.DataFrame):
+		raise TypeError("The pipeline AST did not produce a DataFrame")
 
 	output_directory = project_root / "output"
 	output_directory.mkdir(parents=True, exist_ok=True)
 	output_path = output_directory / "processed_orders.csv"
 	result.to_csv(output_path, index=False)
+	ast_path = project_root / "pipeline.ast.json"
+	ast_path.write_text(pipeline_ast.to_json() + "\n", encoding="utf-8")
 
 	print(f"Processed {len(result)} rows across {len(result.columns)} columns.")
 	print(f"Saved output to {output_path}")
-	for state in engine.history:
-		print(f"{state.step_name}: {state.row_count} rows, {len(state.columns)} columns")
+	print(f"Compiled AST to {ast_path}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,45 @@
+{
+  "format": "mini-engine.dag",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "south_orders",
+      "operation": "load_csv",
+      "inputs": [],
+      "parameters": {
+        "filepath": "data/orders_south_2018.csv"
+      }
+    },
+    {
+      "id": "central_orders",
+      "operation": "load_csv",
+      "inputs": [],
+      "parameters": {
+        "filepath": "data/Orders_Central.csv"
+      }
+    },
+    {
+      "id": "combined_orders",
+      "operation": "union_datasets",
+      "inputs": [
+        "south_orders",
+        "central_orders"
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "normalized_segment",
+      "operation": "transform_string",
+      "inputs": [
+        "combined_orders"
+      ],
+      "parameters": {
+        "column": "Segment",
+        "method": "upper"
+      }
+    }
+  ],
+  "outputs": [
+    "normalized_segment"
+  ]
+}
