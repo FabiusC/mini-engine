@@ -42,6 +42,17 @@
       }
     },
     {
+      "id": "normalized_state",
+      "category": "text",
+      "operation": "LOWER",
+      "inputs": [
+        "normalized_segment"
+      ],
+      "params": {
+        "column": "State"
+      }
+    },
+    {
       "id": "saved_orders",
       "category": "io",
       "operation": "SAVE_CSV",
