@@ -13,10 +13,6 @@ def main() -> None:
 	project_root = Path(__file__).resolve().parent
 	dag_path = project_root / "pipeline.dag.json"
 	dag_definition = json.loads(dag_path.read_text(encoding="utf-8"))
-	if dag_definition.get("format") != "tableau-engine.dag":
-		raise ValueError("Unsupported DAG format")
-	if dag_definition.get("version") != 1:
-		raise ValueError("Unsupported DAG format version")
 	nodes = dag_definition.get("nodes")
 	outputs = dag_definition.get("outputs")
 	if not isinstance(nodes, list) or not isinstance(outputs, list) or not outputs:
