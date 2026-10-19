@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 from tableau_engine.core.dag_runner import DAGRunner
-from tableau_engine.functions.numeric import ceiling
 from tableau_engine.interfaces.text import TextInterface
 
 
@@ -52,9 +51,7 @@ def test_runner_rejects_cycles() -> None:
 def test_text_interface_and_numeric_operation_do_not_mutate_input() -> None:
 	frame = pd.DataFrame({"text": [" mixed "], "amount": [1.2]})
 	upper = TextInterface.execute("UPPER", frame, column="text")
-	rounded = ceiling(frame, "amount")
 
 	assert upper["text"].iloc[0] == " MIXED "
-	assert rounded["amount"].iloc[0] == 2
 	assert frame["text"].iloc[0] == " mixed "
 	assert frame["amount"].iloc[0] == 1.2

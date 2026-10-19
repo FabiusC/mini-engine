@@ -6,10 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.interfaces.casting import CastingInterface
-from tableau_engine.interfaces.dates import DatesInterface
 from tableau_engine.interfaces.io import IOInterface
-from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.structural import StructuralInterface
 from tableau_engine.interfaces.text import TextInterface
 
@@ -21,9 +18,6 @@ class DAGRunner:
 		"io": IOInterface,
 		"input": IOInterface,
 		"text": TextInterface,
-		"numeric": NumericInterface,
-		"dates": DatesInterface,
-		"casting": CastingInterface,
 		"structural": StructuralInterface,
 	}
 

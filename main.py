@@ -31,15 +31,9 @@ def main() -> None:
 
 	output_directory = project_root / "output"
 	output_path = output_directory / "processed_orders.csv"
-	ast_path = project_root / "pipeline.ast.json"
-	ast_path.write_text(
-		json.dumps(runner.to_ast_dict(), indent=2, ensure_ascii=False) + "\n",
-		encoding="utf-8",
-	)
 
 	print(f"Processed {len(result)} rows across {len(result.columns)} columns.")
 	print(f"Saved output to {output_path}")
-	print(f"Compiled AST to {ast_path}")
 
 
 if __name__ == "__main__":
