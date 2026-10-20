@@ -35,7 +35,7 @@ fachada de su categoría mediante `core/operation_registry.py`:
 | structural | `inner_join`, `outer_join`, `sort`, `add_column`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column_name`, `value`; `column`; `column`, `new_name`; `column`, `new_type` |
 | row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
 | text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
-| numeric | `absolute`, `ceiling`, `floor`, `round` | `column`, `new_column`, `new_column_name`; `decimals` para `round` |
+| numeric | `absolute`, `ceiling`, `clean_float`, `floor`, `max`, `min`, `power`, `round` | `column`, `new_column`, `new_column_name`; `column_a`, `column_b`, `new_column_name` para `max`/`min`; `value` para `power`; `decimals` para `round` |
 
 En las operaciones de texto, `new_column: false` (por defecto) actualiza la columna
 original. Con `true`, el resultado va a `new_column_name` o, si no se indica, a la

@@ -51,3 +51,51 @@ def test_numeric_operation_rejects_non_numeric_columns() -> None:
 
 	with pytest.raises(ValueError):
 		NumericInterface.execute("absolute", [frame], column="value")
+
+
+def test_clean_float_coerces_invalid_values_and_preserves_source() -> None:
+	frame = pd.DataFrame({"value": ["1.25", "bad", None, float("nan")]})
+
+	result = NumericInterface.execute("clean_float", [frame], column="value")
+
+	assert result["value"].tolist() == [1.25, 0.0, 0.0, 0.0]
+	assert result["value"].dtype == "float64"
+	assert frame["value"].iloc[1] == "bad"
+
+
+@pytest.mark.parametrize(
+	"operation, expected",
+	[("max", [5.0, 4.0, 7.0]), ("min", [2.0, -1.0, 7.0])],
+)
+def test_horizontal_min_and_max_create_a_new_column(
+	operation: str,
+	expected: list[float],
+) -> None:
+	frame = pd.DataFrame({"left": [2, 4, 7], "right": [5, -1, 7]})
+
+	result = NumericInterface.execute(
+		operation,
+		[frame],
+		column_a="left",
+		column_b="right",
+		new_column_name="result",
+	)
+
+	assert result["result"].tolist() == expected
+	assert frame.columns.tolist() == ["left", "right"]
+
+
+def test_power_supports_a_new_output_column() -> None:
+	frame = pd.DataFrame({"value": [-2, 3]})
+
+	result = NumericInterface.execute(
+		"power",
+		[frame],
+		column="value",
+		value=2,
+		new_column=True,
+		new_column_name="squared",
+	)
+
+	assert result["squared"].tolist() == [4, 9]
+	assert result["value"].tolist() == [-2, 3]

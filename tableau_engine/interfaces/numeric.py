@@ -5,7 +5,16 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.numeric import absolute, ceiling, floor, round_column
+from tableau_engine.functions.numeric import (
+	absolute,
+	ceiling,
+	clean_float,
+	floor,
+	max,
+	min,
+	power,
+	round_column,
+)
 from tableau_engine.interfaces.inputs import require_inputs
 
 
@@ -15,7 +24,11 @@ class NumericInterface:
 	_operations = {
 		"absolute": absolute,
 		"ceiling": ceiling,
+		"clean_float": clean_float,
 		"floor": floor,
+		"max": max,
+		"min": min,
+		"power": power,
 		"round": round_column,
 	}
 

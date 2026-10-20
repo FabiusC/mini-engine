@@ -22,7 +22,11 @@ OPERATION_INTERFACES = {
 	"add_column": StructuralInterface,
 	"absolute": NumericInterface,
 	"ceiling": NumericInterface,
+	"clean_float": NumericInterface,
 	"floor": NumericInterface,
+	"max": NumericInterface,
+	"min": NumericInterface,
+	"power": NumericInterface,
 	"round": NumericInterface,
 }
 
