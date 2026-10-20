@@ -1,4 +1,4 @@
-"""Compile and execute the DAG declared in pipeline.dag.json."""
+"""Read a CSV, apply the text DAG, and save the result."""
 
 import json
 from pathlib import Path
@@ -9,24 +9,19 @@ from tableau_engine.core.dag_runner import DAGRunner
 
 
 def main() -> None:
-	"""Run the category-based DAG directly and save its output dataframe."""
+	"""Process South orders using the editable text DAG."""
 	project_root = Path(__file__).resolve().parent
 	dag_path = project_root / "pipeline.dag.json"
-	dag_definition = json.loads(dag_path.read_text(encoding="utf-8"))
-	nodes = dag_definition.get("nodes")
-	outputs = dag_definition.get("outputs")
-	if not isinstance(nodes, list) or not isinstance(outputs, list) or not outputs:
-		raise ValueError("DAG JSON must define nodes and at least one output")
-	runner = DAGRunner({}, nodes, outputs=outputs, base_dir=project_root)
-	context = runner.run()
-	if len(outputs) != 1:
-		raise ValueError("main.py expects exactly one output node")
-	result = context[outputs[0]]
-	if not isinstance(result, pd.DataFrame):
-		raise TypeError("The pipeline DAG did not produce a DataFrame")
-
-	output_directory = project_root / "output"
-	output_path = output_directory / "processed_orders.csv"
+	dag = json.loads(dag_path.read_text(encoding="utf-8"))
+	input_path = project_root / "data" / "orders_south_2018.csv"
+	try:
+		data = pd.read_csv(input_path, encoding="utf-8-sig")
+	except UnicodeDecodeError:
+		data = pd.read_csv(input_path, encoding="latin1")
+	result = DAGRunner(dag["nodes"]).run(data, dag["output"])
+	output_path = project_root / "output" / "processed_orders.csv"
+	output_path.parent.mkdir(parents=True, exist_ok=True)
+	result.to_csv(output_path, index=False)
 
 	print(f"Processed {len(result)} rows across {len(result.columns)} columns.")
 	print(f"Saved output to {output_path}")

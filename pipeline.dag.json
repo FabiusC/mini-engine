@@ -1,71 +1,23 @@
 {
-  "format": "tableau-engine.dag",
-  "version": 1,
   "nodes": [
     {
-      "id": "south_orders",
-      "category": "io",
-      "operation": "LOAD_CSV",
-      "inputs": [],
-      "params": {
-        "filepath": "data/orders_south_2018.csv"
-      }
-    },
-    {
-      "id": "central_orders",
-      "category": "io",
-      "operation": "LOAD_CSV",
-      "inputs": [],
-      "params": {
-        "filepath": "data/Orders_Central.csv"
-      }
-    },
-    {
-      "id": "combined_orders",
-      "category": "structural",
-      "operation": "UNION",
-      "inputs": [
-        "south_orders",
-        "central_orders"
-      ],
-      "params": {}
-    },
-    {
-      "id": "normalized_segment",
-      "category": "text",
+      "id": "segment_upper",
+      "input": "source",
       "operation": "UPPER",
-      "inputs": [
-        "combined_orders"
-      ],
-      "params": {
-        "column": "Segment"
-      }
+      "column": "Segment"
     },
     {
       "id": "normalized_state",
-      "category": "text",
+      "input": "segment_upper",
       "operation": "LOWER",
-      "inputs": [
-        "normalized_segment"
-      ],
-      "params": {
-        "column": "State"
-      }
+      "column": "State"
     },
     {
-      "id": "saved_orders",
-      "category": "io",
-      "operation": "SAVE_CSV",
-      "inputs": [
-        "normalized_segment"
-      ],
-      "params": {
-        "filepath": "output/processed_orders.csv",
-        "index": false
-      }
+      "id": "customer_lower",
+      "input": "normalized_state",
+      "operation": "LOWER",
+      "column": "Customer Name"
     }
   ],
-  "outputs": [
-    "saved_orders"
-  ]
+  "output": "customer_lower"
 }

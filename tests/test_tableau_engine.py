@@ -5,46 +5,34 @@ from tableau_engine.core.dag_runner import DAGRunner
 from tableau_engine.interfaces.text import TextInterface
 
 
-def test_runner_orders_dependencies_and_returns_node_results() -> None:
-	left = pd.DataFrame({"Segment": ["consumer"]})
-	right = pd.DataFrame({"Segment": ["corporate"]})
-	plan = [
-		{
-			"id": "normalized",
-			"category": "text",
-			"operation": "UPPER",
-			"inputs": ["combined"],
-			"params": {"column": "Segment"},
-		},
-		{
-			"id": "combined",
-			"category": "structural",
-			"operation": "UNION",
-			"inputs": ["left", "right"],
-			"params": {},
-		},
-	]
-
-	runner = DAGRunner({"left": left, "right": right}, plan, outputs=["normalized"])
-	context = runner.run()
-
-	assert context["normalized"]["Segment"].tolist() == ["CONSUMER", "CORPORATE"]
+def test_runner_chains_text_operations() -> None:
+	frame = pd.DataFrame({"text": ["Mixed", None]})
+	runner = DAGRunner([
+		{"id": "upper", "input": "source", "operation": "UPPER", "column": "text"},
+		{"id": "lower", "input": "upper", "operation": "LOWER", "column": "text"},
+	])
+	result = runner.run(frame, "lower")
+	assert result["text"].iloc[0] == "mixed"
+	assert pd.isna(result["text"].iloc[1])
+	assert frame["text"].iloc[0] == "Mixed"
 
 
-def test_runner_rejects_cycles() -> None:
-	plan = [
-		{"id": "first", "category": "text", "operation": "UPPER", "inputs": ["second"]},
-		{"id": "second", "category": "text", "operation": "LOWER", "inputs": ["first"]},
-	]
-
-	with pytest.raises(ValueError, match="Cycle detected"):
-		DAGRunner({}, plan)
+def test_runner_rejects_forward_references() -> None:
+	runner = DAGRunner([
+		{"id": "first", "input": "missing", "operation": "UPPER", "column": "text"},
+	])
+	with pytest.raises(ValueError, match="Input must precede"):
+		runner.run(pd.DataFrame({"text": ["Mixed"]}), "first")
 
 
-def test_text_interface_and_numeric_operation_do_not_mutate_input() -> None:
-	frame = pd.DataFrame({"text": [" mixed "], "amount": [1.2]})
-	upper = TextInterface.execute("UPPER", frame, column="text")
+@pytest.mark.parametrize("operation, expected", [("UPPER", " MIXED "), ("LOWER", " mixed ")])
+def test_text_operations_are_pure(operation: str, expected: str) -> None:
+	frame = pd.DataFrame({"text": [" Mixed "]})
+	result = TextInterface.execute(operation, frame, column="text")
+	assert result["text"].iloc[0] == expected
+	assert frame["text"].iloc[0] == " Mixed "
 
-	assert upper["text"].iloc[0] == " MIXED "
-	assert frame["text"].iloc[0] == " mixed "
-	assert frame["amount"].iloc[0] == 1.2
+
+def test_unknown_operation_is_rejected() -> None:
+	with pytest.raises(ValueError, match="Unknown text operation"):
+		TextInterface.execute("TRIM", pd.DataFrame({"text": ["Mixed"]}), column="text")

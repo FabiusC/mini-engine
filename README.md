@@ -1,34 +1,33 @@
 # mini-engine
 
-## Arquitectura
+Motor simple para transformar texto con dos funciones: `UPPER` y `LOWER`.
 
-`pipeline.dag.json` define el DAG con nodos que declaran `category`, `operation`,
-`inputs` y `params`. `main.py` carga el JSON y `DAGRunner` recorre las dependencias
-en orden topológico, despachando cada nodo a la interfaz de su categoría.
+## Flujo
 
-Las operaciones atómicas viven en `tableau_engine/functions/` y sus routers en
-`tableau_engine/interfaces/`. Cada categoría tiene dos funciones:
+`main.py` lee `data/orders_south_2018.csv`, carga `pipeline.dag.json`, ejecuta
+las transformaciones y guarda `output/processed_orders.csv`. El CSV Central se
+conserva como dato de entrada disponible, pero ya no se combina con South.
 
-- `io`: `LOAD_CSV`, `SAVE_CSV`
-- `text`: `UPPER`, `LOWER`
-- `numeric`: `CEILING`, `FLOOR`
-- `dates`: `PARSE`, `DATE_PART`
-- `casting`: `CHANGE_TYPE`, `TO_NUMERIC`
-- `structural`: `JOIN`, `UNION`
+El DAG contiene una lista de nodos ordenados y un `output`. Cada nodo declara:
 
-Para cambiar el pipeline, edita el nodo correspondiente en `pipeline.dag.json`. Por
-ejemplo, cambia `operation` de `UPPER` a `LOWER` para pasar `Segment` a minúsculas.
-Para cambiar la normalización, edita `operation` a `LOWER`. Cada nodo usa solo
-operaciones de su categoría, y las conexiones se cambian editando sus IDs en `inputs`.
+- `id`: identificador único; `source` está reservado para el dataframe original.
+- `input`: `source` o el ID de un nodo anterior.
+- `operation`: `UPPER` o `LOWER`.
+- `column`: columna de texto que se transforma.
 
-La estructura JSON del DAG es versionada y portable; las rutas relativas se resuelven
-desde la raíz del proyecto.
+Para modificar el flujo, edita las operaciones, columnas o conexiones del JSON.
+Los nodos se ejecutan en el orden escrito: no hay ordenamiento automático ni AST.
+Las referencias hacia nodos posteriores o inexistentes se rechazan. Cada operación
+produce una copia y conserva los valores nulos. Una columna inexistente genera
+un `KeyError` de Pandas.
+
+El runner solo conecta nodos; `TextInterface` selecciona la función atómica de
+`tableau_engine/functions/text/`. La lectura y escritura CSV pertenecen a `main.py`.
 
 ## Ejecución
 
 ```bash
 python -m pip install -r requirements.txt
 python main.py
+python -m pytest -q
 ```
-
-El resultado se escribe en `output/processed_orders.csv`.
