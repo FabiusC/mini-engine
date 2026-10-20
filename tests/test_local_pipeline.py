@@ -28,23 +28,21 @@ def test_main_can_skip_building_pipeline_clean(monkeypatch) -> None:
 	assert run_calls[0][1].name == "pipeline.json"
 
 
-def test_local_pipeline_reads_joins_transforms_and_overwrites_output(tmp_path: Path) -> None:
+def test_local_pipeline_runs_structural_operations_and_overwrites_output(tmp_path: Path) -> None:
 	(tmp_path / "data").mkdir()
 	pd.DataFrame({
 		"Customer ID": ["A", "B"],
-		"Segment": ["consumer", "corporate"],
-		"Customer Name": ["Ana Ruiz", "Bo Li"],
-		"City": ["Austin", "Boston"],
 		"Sales": [10.245, 20.0],
+		"Discount": [0.2, 0.0],
 		"Profit": [-1.234, 3.0],
+		"Postal Code": [12345, 67890],
 	}).to_csv(tmp_path / "data" / "orders_south_2018.csv", index=False)
 	pd.DataFrame({
-		"Customer ID": ["A", "C"],
-		"Segment": ["home office", "consumer"],
-		"Customer Name": ["Ana Ruiz", "Cy Ho"],
-		"City": ["Austin", "Chicago"],
+		"Customer ID": ["A", "B"],
 		"Sales": [1.239, 2.0],
+		"Discounts": [0.3, 0.1],
 		"Profit": [-2.7, 4.0],
+		"Postal Code": [12345, 67890],
 	}).to_csv(tmp_path / "data" / "Orders_Central.csv", index=False)
 	output_path = tmp_path / "output" / "processed_orders.csv"
 	output_path.parent.mkdir()
@@ -53,16 +51,12 @@ def test_local_pipeline_reads_joins_transforms_and_overwrites_output(tmp_path: P
 
 	pipeline = json.loads((tmp_path / "pipeline.json").read_text(encoding="utf-8"))
 	PipelineRunner(pipeline, base_dir=tmp_path).run()
-	result = pd.read_csv(output_path)
+	result = pd.read_csv(output_path, dtype={"Postal Code_south": "string"})
 
-	assert result["Customer ID"].tolist() == ["A"]
-	assert result["Segment_south"].tolist() == ["CONSUMER"]
-	assert result["Customer Name_south"].tolist() == ["Ana Ruiz"]
-	assert result["Customer Name_south_1"].tolist() == ["ana ruiz"]
-	assert result["city_south_upper"].tolist() == ["AUSTIN"]
-	assert result["Profit_south"].tolist() == [-1.234]
-	assert result["profit_south_absolute"].tolist() == [1.234]
-	assert result["sales_south_ceiling"].tolist() == [11.0]
-	assert result["Profit_central"].tolist() == [-3.0]
-	assert result["Sales_central"].tolist() == [1.24]
-	assert result["source"].tolist() == ["south_central_join"]
+	assert result["Customer ID"].tolist() == ["B", "A"]
+	assert result["Sales_south"].tolist() == [20.0, 10.245]
+	assert "Discount" not in result.columns
+	assert result["Profit Margin"].tolist() == [3.0, -1.234]
+	assert result["Postal Code_south"].tolist() == ["67890", "12345"]
+	assert result["Postal Code_south"].dtype == pd.StringDtype()
+	assert result["source"].tolist() == ["south_central_join", "south_central_join"]

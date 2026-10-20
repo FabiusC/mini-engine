@@ -29,69 +29,32 @@
             }
         },
         {
-            "id": "segment_upper",
-            "operation": {"name": "uppercase"},
-            "input_ports": [{"id": "segment_upper_in", "ordinal": 0}],
-            "output_ports": [{"id": "segment_upper_out", "ordinal": 0}],
-            "parameters": {"column": "Segment_south", "new_column": false}
+            "id": "sort_sales",
+            "operation": {"name": "sort"},
+            "input_ports": [{"id": "sort_sales_in", "ordinal": 0}],
+            "output_ports": [{"id": "sort_sales_out", "ordinal": 0}],
+            "parameters": {"column": "Sales_south", "direction": "desc"}
         },
         {
-            "id": "customer_lower",
-            "operation": {"name": "lowercase"},
-            "input_ports": [{"id": "customer_lower_in", "ordinal": 0}],
-            "output_ports": [{"id": "customer_lower_out", "ordinal": 0}],
-            "parameters": {"column": "Customer Name_south", "new_column": true}
+            "id": "drop_discount",
+            "operation": {"name": "drop-column"},
+            "input_ports": [{"id": "drop_discount_in", "ordinal": 0}],
+            "output_ports": [{"id": "drop_discount_out", "ordinal": 0}],
+            "parameters": {"column": "Discount"}
         },
         {
-            "id": "city_upper",
-            "operation": {"name": "uppercase"},
-            "input_ports": [{"id": "city_upper_in", "ordinal": 0}],
-            "output_ports": [{"id": "city_upper_out", "ordinal": 0}],
-            "parameters": {
-                "column": "City_south",
-                "new_column": true,
-                "new_column_name": "city_south_upper"
-            }
+            "id": "rename_profit",
+            "operation": {"name": "rename-column"},
+            "input_ports": [{"id": "rename_profit_in", "ordinal": 0}],
+            "output_ports": [{"id": "rename_profit_out", "ordinal": 0}],
+            "parameters": {"column": "Profit_south", "new_name": "Profit Margin"}
         },
         {
-            "id": "absolute_profit",
-            "operation": {"name": "absolute"},
-            "input_ports": [{"id": "absolute_profit_in", "ordinal": 0}],
-            "output_ports": [{"id": "absolute_profit_out", "ordinal": 0}],
-            "parameters": {
-                "column": "Profit_south",
-                "new_column": true,
-                "new_column_name": "profit_south_absolute"
-            }
-        },
-        {
-            "id": "ceiling_sales",
-            "operation": {"name": "ceiling"},
-            "input_ports": [{"id": "ceiling_sales_in", "ordinal": 0}],
-            "output_ports": [{"id": "ceiling_sales_out", "ordinal": 0}],
-            "parameters": {
-                "column": "Sales_south",
-                "new_column": true,
-                "new_column_name": "sales_south_ceiling"
-            }
-        },
-        {
-            "id": "floor_profit",
-            "operation": {"name": "floor"},
-            "input_ports": [{"id": "floor_profit_in", "ordinal": 0}],
-            "output_ports": [{"id": "floor_profit_out", "ordinal": 0}],
-            "parameters": {"column": "Profit_central", "new_column": false}
-        },
-        {
-            "id": "round_sales",
-            "operation": {"name": "round"},
-            "input_ports": [{"id": "round_sales_in", "ordinal": 0}],
-            "output_ports": [{"id": "round_sales_out", "ordinal": 0}],
-            "parameters": {
-                "column": "Sales_central",
-                "decimals": 2,
-                "new_column": false
-            }
+            "id": "type_postal_code",
+            "operation": {"name": "change-data-type"},
+            "input_ports": [{"id": "type_postal_code_in", "ordinal": 0}],
+            "output_ports": [{"id": "type_postal_code_out", "ordinal": 0}],
+            "parameters": {"column": "Postal Code_south", "new_type": "string"}
         },
         {
             "id": "add_source",
@@ -124,59 +87,38 @@
             "target_input_port_id": "join_orders_right"
         },
         {
-            "id": "join_to_segment",
+            "id": "join_to_sort_sales",
             "source_node_id": "join_orders",
-            "target_node_id": "segment_upper",
+            "target_node_id": "sort_sales",
             "source_output_port_id": "join_orders_out",
-            "target_input_port_id": "segment_upper_in"
+            "target_input_port_id": "sort_sales_in"
         },
         {
-            "id": "segment_to_customer",
-            "source_node_id": "segment_upper",
-            "target_node_id": "customer_lower",
-            "source_output_port_id": "segment_upper_out",
-            "target_input_port_id": "customer_lower_in"
+            "id": "sort_sales_to_drop_discount",
+            "source_node_id": "sort_sales",
+            "target_node_id": "drop_discount",
+            "source_output_port_id": "sort_sales_out",
+            "target_input_port_id": "drop_discount_in"
         },
         {
-            "id": "customer_to_city",
-            "source_node_id": "customer_lower",
-            "target_node_id": "city_upper",
-            "source_output_port_id": "customer_lower_out",
-            "target_input_port_id": "city_upper_in"
+            "id": "drop_discount_to_rename_profit",
+            "source_node_id": "drop_discount",
+            "target_node_id": "rename_profit",
+            "source_output_port_id": "drop_discount_out",
+            "target_input_port_id": "rename_profit_in"
         },
         {
-            "id": "city_to_absolute",
-            "source_node_id": "city_upper",
-            "target_node_id": "absolute_profit",
-            "source_output_port_id": "city_upper_out",
-            "target_input_port_id": "absolute_profit_in"
+            "id": "rename_profit_to_type_postal_code",
+            "source_node_id": "rename_profit",
+            "target_node_id": "type_postal_code",
+            "source_output_port_id": "rename_profit_out",
+            "target_input_port_id": "type_postal_code_in"
         },
         {
-            "id": "absolute_to_ceiling",
-            "source_node_id": "absolute_profit",
-            "target_node_id": "ceiling_sales",
-            "source_output_port_id": "absolute_profit_out",
-            "target_input_port_id": "ceiling_sales_in"
-        },
-        {
-            "id": "ceiling_to_floor",
-            "source_node_id": "ceiling_sales",
-            "target_node_id": "floor_profit",
-            "source_output_port_id": "ceiling_sales_out",
-            "target_input_port_id": "floor_profit_in"
-        },
-        {
-            "id": "floor_to_round",
-            "source_node_id": "floor_profit",
-            "target_node_id": "round_sales",
-            "source_output_port_id": "floor_profit_out",
-            "target_input_port_id": "round_sales_in"
-        },
-        {
-            "id": "round_to_source",
-            "source_node_id": "round_sales",
+            "id": "type_postal_code_to_add_source",
+            "source_node_id": "type_postal_code",
             "target_node_id": "add_source",
-            "source_output_port_id": "round_sales_out",
+            "source_output_port_id": "type_postal_code_out",
             "target_input_port_id": "add_source_in"
         },
         {

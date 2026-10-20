@@ -16,11 +16,15 @@ un nodo que no está en la respuesta activa, el nodo anidado es `null`.
 
 ## Ejecutar el pipeline local
 
-`dag/pipeline.json` define el DAG que ejecuta `main.py`: dos `read_csv`, un
-`inner_join` por `Customer ID`, transformaciones de columna y un `write_csv` que
-sobrescribe `output/processed_orders.csv`. Cada nodo declara `operation.name`, sus
-puertos y `parameters`; las aristas conectan puertos por ID. Las rutas son relativas
-a la raíz del proyecto.
+`dag/pipeline.json` define el DAG estructural que ejecuta `main.py`: lee los CSV,
+los une por `Customer ID`, ordena por `Sales_south`, elimina `Discount`, renombra
+`Profit_south`, convierte `Postal Code_south` a texto y escribe
+`output/processed_orders.csv`. Cada nodo declara `operation.name`, sus puertos y
+`parameters`; las aristas conectan puertos por ID. Las rutas son relativas a la raíz
+del proyecto.
+
+El pipeline previo de lectura, join, operaciones de texto y transformaciones
+numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
 `PipelineRunner` ordena los nodos por sus aristas y delega cada operación en la
 fachada de su categoría mediante `core/operation_registry.py`:
@@ -28,7 +32,7 @@ fachada de su categoría mediante `core/operation_registry.py`:
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
 | io | `read_csv`, `write_csv` | `filepath` |
-| structural | `inner_join`, `outer_join` | `left_on`, `right_on`, `suffixes` |
+| structural | `inner_join`, `outer_join`, `sort`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column`; `column`, `new_name`; `column`, `new_type` |
 | row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
 | text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
 | column | `add_column` | `column_name`, `value` |
