@@ -2,6 +2,7 @@
 
 from tableau_engine.interfaces.column import ColumnInterface
 from tableau_engine.interfaces.io import IOInterface
+from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.row import RowInterface
 from tableau_engine.interfaces.structural import StructuralInterface
 from tableau_engine.interfaces.text import TextInterface
@@ -16,6 +17,10 @@ OPERATION_INTERFACES = {
 	"uppercase": TextInterface,
 	"lowercase": TextInterface,
 	"add_column": ColumnInterface,
+	"absolute": NumericInterface,
+	"ceiling": NumericInterface,
+	"floor": NumericInterface,
+	"round": NumericInterface,
 }
 
 

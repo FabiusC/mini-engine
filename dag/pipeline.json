@@ -54,6 +54,46 @@
             }
         },
         {
+            "id": "absolute_profit",
+            "operation": {"name": "absolute"},
+            "input_ports": [{"id": "absolute_profit_in", "ordinal": 0}],
+            "output_ports": [{"id": "absolute_profit_out", "ordinal": 0}],
+            "parameters": {
+                "column": "Profit_south",
+                "new_column": true,
+                "new_column_name": "profit_south_absolute"
+            }
+        },
+        {
+            "id": "ceiling_sales",
+            "operation": {"name": "ceiling"},
+            "input_ports": [{"id": "ceiling_sales_in", "ordinal": 0}],
+            "output_ports": [{"id": "ceiling_sales_out", "ordinal": 0}],
+            "parameters": {
+                "column": "Sales_south",
+                "new_column": true,
+                "new_column_name": "sales_south_ceiling"
+            }
+        },
+        {
+            "id": "floor_profit",
+            "operation": {"name": "floor"},
+            "input_ports": [{"id": "floor_profit_in", "ordinal": 0}],
+            "output_ports": [{"id": "floor_profit_out", "ordinal": 0}],
+            "parameters": {"column": "Profit_central", "new_column": false}
+        },
+        {
+            "id": "round_sales",
+            "operation": {"name": "round"},
+            "input_ports": [{"id": "round_sales_in", "ordinal": 0}],
+            "output_ports": [{"id": "round_sales_out", "ordinal": 0}],
+            "parameters": {
+                "column": "Sales_central",
+                "decimals": 2,
+                "new_column": false
+            }
+        },
+        {
             "id": "add_source",
             "operation": {"name": "add_column"},
             "input_ports": [{"id": "add_source_in", "ordinal": 0}],
@@ -105,10 +145,38 @@
             "target_input_port_id": "city_upper_in"
         },
         {
-            "id": "city_to_source",
+            "id": "city_to_absolute",
             "source_node_id": "city_upper",
-            "target_node_id": "add_source",
+            "target_node_id": "absolute_profit",
             "source_output_port_id": "city_upper_out",
+            "target_input_port_id": "absolute_profit_in"
+        },
+        {
+            "id": "absolute_to_ceiling",
+            "source_node_id": "absolute_profit",
+            "target_node_id": "ceiling_sales",
+            "source_output_port_id": "absolute_profit_out",
+            "target_input_port_id": "ceiling_sales_in"
+        },
+        {
+            "id": "ceiling_to_floor",
+            "source_node_id": "ceiling_sales",
+            "target_node_id": "floor_profit",
+            "source_output_port_id": "ceiling_sales_out",
+            "target_input_port_id": "floor_profit_in"
+        },
+        {
+            "id": "floor_to_round",
+            "source_node_id": "floor_profit",
+            "target_node_id": "round_sales",
+            "source_output_port_id": "floor_profit_out",
+            "target_input_port_id": "round_sales_in"
+        },
+        {
+            "id": "round_to_source",
+            "source_node_id": "round_sales",
+            "target_node_id": "add_source",
+            "source_output_port_id": "round_sales_out",
             "target_input_port_id": "add_source_in"
         },
         {

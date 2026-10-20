@@ -32,10 +32,15 @@ fachada de su categoría mediante `core/operation_registry.py`:
 | row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
 | text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
 | column | `add_column` | `column_name`, `value` |
+| numeric | `absolute`, `ceiling`, `floor`, `round` | `column`, `new_column`, `new_column_name`; `decimals` para `round` |
 
 En las operaciones de texto, `new_column: false` (por defecto) actualiza la columna
 original. Con `true`, el resultado va a `new_column_name` o, si no se indica, a la
 columna original con el siguiente índice libre (`City_1`, `City_2`, ...).
+
+Las operaciones numéricas usan la misma selección de columna destino. `round` acepta
+`decimals`; en el pipeline de ejemplo, `absolute` y `ceiling` crean columnas nuevas,
+mientras que `floor` y `round` actualizan las columnas originales.
 
 Los joins infieren la clave solo si hay una única columna común; con estos CSV hay que
 indicar `left_on` y `right_on`.

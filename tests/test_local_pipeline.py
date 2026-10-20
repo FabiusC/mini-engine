@@ -35,12 +35,16 @@ def test_local_pipeline_reads_joins_transforms_and_overwrites_output(tmp_path: P
 		"Segment": ["consumer", "corporate"],
 		"Customer Name": ["Ana Ruiz", "Bo Li"],
 		"City": ["Austin", "Boston"],
+		"Sales": [10.245, 20.0],
+		"Profit": [-1.234, 3.0],
 	}).to_csv(tmp_path / "data" / "orders_south_2018.csv", index=False)
 	pd.DataFrame({
 		"Customer ID": ["A", "C"],
 		"Segment": ["home office", "consumer"],
 		"Customer Name": ["Ana Ruiz", "Cy Ho"],
 		"City": ["Austin", "Chicago"],
+		"Sales": [1.239, 2.0],
+		"Profit": [-2.7, 4.0],
 	}).to_csv(tmp_path / "data" / "Orders_Central.csv", index=False)
 	output_path = tmp_path / "output" / "processed_orders.csv"
 	output_path.parent.mkdir()
@@ -56,4 +60,9 @@ def test_local_pipeline_reads_joins_transforms_and_overwrites_output(tmp_path: P
 	assert result["Customer Name_south"].tolist() == ["Ana Ruiz"]
 	assert result["Customer Name_south_1"].tolist() == ["ana ruiz"]
 	assert result["city_south_upper"].tolist() == ["AUSTIN"]
+	assert result["Profit_south"].tolist() == [-1.234]
+	assert result["profit_south_absolute"].tolist() == [1.234]
+	assert result["sales_south_ceiling"].tolist() == [11.0]
+	assert result["Profit_central"].tolist() == [-3.0]
+	assert result["Sales_central"].tolist() == [1.24]
 	assert result["source"].tolist() == ["south_central_join"]
