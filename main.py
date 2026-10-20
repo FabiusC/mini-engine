@@ -1,39 +1,35 @@
-"""Read a CSV, apply the text DAG, and save the result."""
+"""Generate a compact DAG JSON from the saved API response files."""
 
 import json
 from pathlib import Path
 
-from tableau_engine.core.dag_graph import load_dag
-from tableau_engine.core.dag_runner import DAGRunner
-from tableau_engine.io import read_datasource
+from tableau_engine.core.pipeline_clean import merge_pipeline_clean
 
 
 def main() -> None:
-	"""Join South and Central orders, then run the text DAG."""
+	"""Merge local node, edge, and operation responses into one JSON file."""
 	project_root = Path(__file__).resolve().parent
-	# Reconstruct dependencies from the saved node, edge, and operation responses.
-	dag = load_dag(project_root / "dag")
-	print("Execution order:")
-	for node in dag.nodes:
-		print(f"  {node.name}: {node.operation}")
-
-	config_path = project_root / "dag" / "runtime.json"
-	if not config_path.exists():
-		print(f"DAG built. Add datasource bindings and operation parameters to {config_path} to execute it.")
-		for node_id, port in dag.missing_inputs:
-			print(f"  Missing input: node={node_id}, port={port.port_id} ({port.description})")
-		return
-
-	config = json.loads(config_path.read_text(encoding="utf-8"))
-	# External DataFrames are bound to unconnected input-port IDs.
-	datasources = {
-		port_id: read_datasource(project_root / filepath)
-		for port_id, filepath in config.get("datasources", {}).items()
+	dag_directory = project_root / "dag"
+	nodes_json = json.loads((dag_directory / "nodes.json").read_text(encoding="utf-8"))
+	edges_json = json.loads((dag_directory / "edges.json").read_text(encoding="utf-8"))
+	operation_ids = {
+		node["operation_id"]
+		for node in nodes_json.get("data", [])
+		if not node.get("is_deleted") and node.get("operation_id")
 	}
-	results = DAGRunner(dag).run(datasources, config.get("parameters", {}))
-	for node in dag.nodes:
-		result = results[node.node_id]
-		print(f"Executed {node.name}: {len(result)} rows, {len(result.columns)} columns")
+	operations_json = {"data": []}
+	for operation_id in sorted(operation_ids):
+		operation_path = dag_directory / f"{operation_id}.json"
+		operation_response = json.loads(operation_path.read_text(encoding="utf-8"))
+		operations_json["data"].append(operation_response["data"])
+
+	clean_dag = merge_pipeline_clean(edges_json, nodes_json, operations_json)
+	output_path = dag_directory / "pipeline_clean.json"
+	output_path.write_text(
+		json.dumps(clean_dag, indent=4, ensure_ascii=False) + "\n",
+		encoding="utf-8",
+	)
+	print(f"Generated {len(clean_dag['edges'])} edges in {output_path}")
 
 
 if __name__ == "__main__":
