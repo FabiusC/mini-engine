@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 from tableau_engine.functions.structural import (
+	add_column,
 	change_data_type,
 	drop_column,
 	join,
@@ -20,6 +21,7 @@ class StructuralInterface:
 
 	_join_types = {"inner_join": "inner", "outer_join": "outer"}
 	_transformations = {
+		"add_column": add_column,
 		"sort": sort_rows,
 		"drop-column": drop_column,
 		"rename-column": rename_column,

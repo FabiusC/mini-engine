@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.functions.column import add_column
+from tableau_engine.functions.structural import add_column
 from tableau_engine.interfaces.text import TextInterface
 
 

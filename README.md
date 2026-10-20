@@ -32,10 +32,9 @@ fachada de su categoría mediante `core/operation_registry.py`:
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
 | io | `read_csv`, `write_csv` | `filepath` |
-| structural | `inner_join`, `outer_join`, `sort`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column`; `column`, `new_name`; `column`, `new_type` |
+| structural | `inner_join`, `outer_join`, `sort`, `add_column`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column_name`, `value`; `column`; `column`, `new_name`; `column`, `new_type` |
 | row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
 | text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
-| column | `add_column` | `column_name`, `value` |
 | numeric | `absolute`, `ceiling`, `floor`, `round` | `column`, `new_column`, `new_column_name`; `decimals` para `round` |
 
 En las operaciones de texto, `new_column: false` (por defecto) actualiza la columna

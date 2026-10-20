@@ -1,6 +1,5 @@
 """Map pipeline operation names to the facade that executes them."""
 
-from tableau_engine.interfaces.column import ColumnInterface
 from tableau_engine.interfaces.io import IOInterface
 from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.row import RowInterface
@@ -20,7 +19,7 @@ OPERATION_INTERFACES = {
 	"filter": RowInterface,
 	"uppercase": TextInterface,
 	"lowercase": TextInterface,
-	"add_column": ColumnInterface,
+	"add_column": StructuralInterface,
 	"absolute": NumericInterface,
 	"ceiling": NumericInterface,
 	"floor": NumericInterface,
