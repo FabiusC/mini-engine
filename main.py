@@ -11,6 +11,7 @@ from tableau_engine.io import read_datasource
 def main() -> None:
 	"""Join South and Central orders, then run the text DAG."""
 	project_root = Path(__file__).resolve().parent
+	# Reconstruct dependencies from the saved node, edge, and operation responses.
 	dag = load_dag(project_root / "dag")
 	print("Execution order:")
 	for node in dag.nodes:
@@ -24,6 +25,7 @@ def main() -> None:
 		return
 
 	config = json.loads(config_path.read_text(encoding="utf-8"))
+	# External DataFrames are bound to unconnected input-port IDs.
 	datasources = {
 		port_id: read_datasource(project_root / filepath)
 		for port_id, filepath in config.get("datasources", {}).items()

@@ -49,6 +49,7 @@ class PipelineDAG:
 
 
 def _response_data(response: Any, label: str) -> Any:
+	"""Return the API payload after checking its success envelope."""
 	if not isinstance(response, dict) or response.get("success") is not True:
 		raise ValueError(f"Invalid {label} API response")
 	if "data" not in response:
@@ -56,21 +57,23 @@ def _response_data(response: Any, label: str) -> Any:
 	return response["data"]
 
 
-def build_dag(
-	nodes_response: dict[str, Any],
-	edges_response: dict[str, Any],
-	operations: dict[str, dict[str, Any]],
-) -> PipelineDAG:
-	"""Connect node ports by edge IDs and topologically order the resulting DAG."""
-	raw_nodes = _response_data(nodes_response, "nodes")
-	raw_edges = _response_data(edges_response, "edges")
-	if not isinstance(raw_nodes, list) or not isinstance(raw_edges, list):
-		raise ValueError("Nodes and edges data must be lists")
+def _index_nodes(raw_nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+	"""Keep active nodes in an ID lookup and reject duplicate IDs."""
+	nodes_by_id: dict[str, dict[str, Any]] = {}
+	for node in raw_nodes:
+		if node.get("is_deleted"):
+			continue
+		node_id = node["id"]
+		if node_id in nodes_by_id:
+			raise ValueError(f"Duplicate node ID: {node_id!r}")
+		nodes_by_id[node_id] = node
+	return nodes_by_id
 
-	nodes_by_id = {node["id"]: node for node in raw_nodes if not node.get("is_deleted")}
-	if len(nodes_by_id) != sum(not node.get("is_deleted") for node in raw_nodes):
-		raise ValueError("Node IDs must be unique")
 
+def _index_ports(
+	nodes_by_id: dict[str, dict[str, Any]],
+) -> tuple[dict[str, tuple[str, dict[str, Any]]], dict[str, str]]:
+	"""Map input and output port IDs back to their owning nodes."""
 	input_ports: dict[str, tuple[str, dict[str, Any]]] = {}
 	output_ports: dict[str, str] = {}
 	for node_id, node in nodes_by_id.items():
@@ -82,7 +85,16 @@ def build_dag(
 			if port["id"] in output_ports:
 				raise ValueError(f"Duplicate output port ID: {port['id']!r}")
 			output_ports[port["id"]] = node_id
+	return input_ports, output_ports
 
+
+def _connect_edges(
+	raw_edges: list[dict[str, Any]],
+	nodes_by_id: dict[str, dict[str, Any]],
+	input_ports: dict[str, tuple[str, dict[str, Any]]],
+	output_ports: dict[str, str],
+) -> dict[str, tuple[str, str]]:
+	"""Validate edges and map each target input port to its producer node/port."""
 	connections: dict[str, tuple[str, str]] = {}
 	for edge in raw_edges:
 		if edge.get("is_deleted"):
@@ -100,7 +112,14 @@ def build_dag(
 		if target_port in connections:
 			raise ValueError(f"Input port {target_port!r} has multiple edges")
 		connections[target_port] = (source_node, source_port)
+	return connections
 
+
+def _topological_order(
+	nodes_by_id: dict[str, dict[str, Any]],
+	connections: dict[str, tuple[str, str]],
+) -> list[str]:
+	"""Return node IDs with every upstream producer before its consumers."""
 	ordered_ids: list[str] = []
 	visiting: set[str] = set()
 	visited: set[str] = set()
@@ -121,51 +140,83 @@ def build_dag(
 
 	for node_id in nodes_by_id:
 		visit(node_id)
+	return ordered_ids
 
-	plan: list[OperationNode] = []
-	for node_id in ordered_ids:
-		raw_node = nodes_by_id[node_id]
-		operation_id = raw_node["operation_id"]
-		operation_response = operations.get(operation_id)
-		if operation_response is None:
-			raise ValueError(f"Missing operation definition {operation_id!r}")
-		operation = _response_data(operation_response, f"operation {operation_id}")
-		ports = []
-		for port in sorted(raw_node.get("input_ports", []), key=lambda item: item["ordinal"]):
-			connection = connections.get(port["id"])
-			source_node, source_port = connection if connection else (None, None)
-			ports.append(
-				InputPort(
-					port_id=port["id"],
-					ordinal=port["ordinal"],
-					required=port["required"],
-					description=port.get("description", ""),
-					source_node_id=source_node,
-					source_port_id=source_port,
-				)
-			)
-		plan.append(
-			OperationNode(
-				node_id=node_id,
-				name=raw_node["name"],
-				operation_id=operation_id,
-				operation=operation["name"],
-				inputs=tuple(ports),
-				output_port_ids=tuple(
-					port["id"]
-					for port in sorted(
-						raw_node.get("output_ports", []), key=lambda item: item["ordinal"]
-					)
-				),
-				parameters=raw_node.get("parameters", []),
+
+def _build_operation_node(
+	node_id: str,
+	nodes_by_id: dict[str, dict[str, Any]],
+	connections: dict[str, tuple[str, str]],
+	operations: dict[str, dict[str, Any]],
+) -> OperationNode:
+	"""Combine one node snapshot with its operation contract and connected ports."""
+	raw_node = nodes_by_id[node_id]
+	operation_id = raw_node["operation_id"]
+	operation_response = operations.get(operation_id)
+	if operation_response is None:
+		raise ValueError(f"Missing operation definition {operation_id!r}")
+	operation = _response_data(operation_response, f"operation {operation_id}")
+
+	inputs = []
+	for port in sorted(raw_node.get("input_ports", []), key=lambda item: item["ordinal"]):
+		connection = connections.get(port["id"])
+		source_node, source_port = connection if connection else (None, None)
+		inputs.append(
+			InputPort(
+				port_id=port["id"],
+				ordinal=port["ordinal"],
+				required=port["required"],
+				description=port.get("description", ""),
+				source_node_id=source_node,
+				source_port_id=source_port,
 			)
 		)
+	output_port_ids = tuple(
+		port["id"]
+		for port in sorted(
+			raw_node.get("output_ports", []), key=lambda item: item["ordinal"]
+		)
+	)
+	return OperationNode(
+		node_id=node_id,
+		name=raw_node["name"],
+		operation_id=operation_id,
+		operation=operation["name"],
+		inputs=tuple(inputs),
+		output_port_ids=output_port_ids,
+		parameters=raw_node.get("parameters", []),
+	)
+
+
+def build_dag(
+	nodes_response: dict[str, Any],
+	edges_response: dict[str, Any],
+	operations: dict[str, dict[str, Any]],
+) -> PipelineDAG:
+	"""Build a validated PipelineDAG from API response envelopes.
+
+	The function coordinates four steps: unwrap responses, index nodes/ports,
+	validate and connect edges, then build operation nodes in topological order.
+	"""
+	raw_nodes = _response_data(nodes_response, "nodes")
+	raw_edges = _response_data(edges_response, "edges")
+	if not isinstance(raw_nodes, list) or not isinstance(raw_edges, list):
+		raise ValueError("Nodes and edges data must be lists")
+	nodes_by_id = _index_nodes(raw_nodes)
+	input_ports, output_ports = _index_ports(nodes_by_id)
+	connections = _connect_edges(raw_edges, nodes_by_id, input_ports, output_ports)
+	ordered_ids = _topological_order(nodes_by_id, connections)
+	plan = [
+		_build_operation_node(node_id, nodes_by_id, connections, operations)
+		for node_id in ordered_ids
+	]
 	return PipelineDAG(tuple(plan))
 
 
 def load_dag(directory: str | Path) -> PipelineDAG:
 	"""Load nodes, edges, and operation snapshots from a directory."""
 	root = Path(directory)
+	# Nodes and edges define topology; per-operation files define operation behavior.
 	nodes_response = json.loads((root / "nodes.json").read_text(encoding="utf-8"))
 	edges_response = json.loads((root / "edges.json").read_text(encoding="utf-8"))
 	operations = {}
