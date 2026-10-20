@@ -4,6 +4,7 @@ from tableau_engine.functions.structural.change_data_type import change_data_typ
 from tableau_engine.functions.structural.add_column import add_column
 from tableau_engine.functions.structural.drop_column import drop_column
 from tableau_engine.functions.structural.join import join
+from tableau_engine.functions.structural.output_column import resolve_output_column
 from tableau_engine.functions.structural.rename_column import rename_column
 from tableau_engine.functions.structural.sort_rows import sort_rows
 
@@ -13,5 +14,6 @@ __all__ = [
 	"drop_column",
 	"join",
 	"rename_column",
+	"resolve_output_column",
 	"sort_rows",
 ]

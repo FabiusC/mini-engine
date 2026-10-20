@@ -4,7 +4,7 @@ import math
 
 import pandas as pd
 
-from tableau_engine.functions.column.output_column import resolve_output_column
+from tableau_engine.functions.structural.output_column import resolve_output_column
 
 
 def floor(
