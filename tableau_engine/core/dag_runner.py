@@ -1,71 +1,81 @@
-"""Execute an ordered DAG containing joins and text operations."""
+"""Execute a PipelineDAG built from the saved API responses."""
 
 from collections.abc import Mapping
-from typing import TypedDict
+from typing import Any
 
 import pandas as pd
 
+from tableau_engine.core.dag_graph import OperationNode, PipelineDAG
+from tableau_engine.interfaces.row import RowInterface
+from tableau_engine.interfaces.structural import StructuralInterface
 from tableau_engine.interfaces.text import TextInterface
-from tableau_engine.structural import join
-
-
-class TextNode(TypedDict):
-	"""A text operation consuming the source or a previously defined node."""
-
-	id: str
-	input: str
-	operation: str
-	column: str
-
-
-class JoinNode(TypedDict):
-	"""Join two datasource or node results."""
-
-	id: str
-	inputs: list[str]
-	operation: str
-	left_on: str | list[str]
-	right_on: str | list[str]
-	how: str
 
 
 class DAGRunner:
-	"""Execute join and text nodes in JSON order."""
+	"""Resolve input ports and execute operations in the DAG's topological order."""
 
-	def __init__(self, nodes: list[TextNode | JoinNode]) -> None:
-		self.nodes = nodes
+	_interfaces = {
+		"inner_join": StructuralInterface,
+		"outer_join": StructuralInterface,
+		"limit": RowInterface,
+		"filter": RowInterface,
+		"upper": TextInterface,
+		"lower": TextInterface,
+	}
+
+	def __init__(self, dag: PipelineDAG) -> None:
+		self.dag = dag
 
 	def run(
 		self,
-		datasources: pd.DataFrame | Mapping[str, pd.DataFrame],
-		output: str,
-	) -> pd.DataFrame:
-		"""Apply each operation and return the selected output dataframe."""
-		results = {"source": datasources} if isinstance(datasources, pd.DataFrame) else dict(datasources)
-		for node in self.nodes:
-			if node["id"] in results:
-				raise ValueError(f"Duplicate node id: {node['id']!r}")
+		datasources: Mapping[str, pd.DataFrame],
+		parameters: Mapping[str, Mapping[str, Any]] | None = None,
+	) -> dict[str, pd.DataFrame]:
+		"""Execute nodes using datasource data keyed by unconnected input-port ID."""
+		parameters = parameters or {}
+		outputs_by_port: dict[str, pd.DataFrame] = {}
+		outputs_by_node: dict[str, pd.DataFrame] = {}
 
-			if node["operation"] == "JOIN":
-				inputs = node["inputs"]
-				if len(inputs) != 2 or any(input_id not in results for input_id in inputs):
-					raise ValueError(f"JOIN node {node['id']!r} needs two existing inputs")
-				results[node["id"]] = join(
-					results[inputs[0]],
-					results[inputs[1]],
-					left_on=node["left_on"],
-					right_on=node["right_on"],
-					how=node.get("how", "inner"),
+		for node in self.dag.nodes:
+			input_frames: list[pd.DataFrame] = []
+			for port in node.inputs:
+				if port.source_port_id is not None:
+					if port.source_port_id not in outputs_by_port:
+						raise ValueError(
+							f"Input {port.port_id!r} is not ready; producer "
+							f"{port.source_node_id!r} has not run"
+						)
+					dataframe = outputs_by_port[port.source_port_id]
+				else:
+					dataframe = datasources.get(port.port_id)
+					if dataframe is None:
+						if port.required:
+							raise ValueError(
+								f"Missing datasource for required input port "
+								f"{port.port_id!r} on node {node.name!r}"
+							)
+						continue
+				if not isinstance(dataframe, pd.DataFrame):
+					raise TypeError(f"Input port {port.port_id!r} must receive a DataFrame")
+				input_frames.append(dataframe)
+
+			node_parameters = node.parameters
+			if not isinstance(node_parameters, Mapping):
+				node_parameters = {}
+			resolved_parameters = {**node_parameters, **parameters.get(node.node_id, {})}
+			try:
+				interface = self._interfaces[node.operation.lower()]
+			except KeyError as error:
+				raise ValueError(f"Unsupported operation {node.operation!r}") from error
+			if interface is StructuralInterface:
+				result = interface.execute(node.operation, input_frames, **resolved_parameters)
+			else:
+				if len(input_frames) != 1:
+					raise ValueError(f"{node.name} requires one input dataframe")
+				result = interface.execute(
+					node.operation, input_frames[0], **resolved_parameters
 				)
-				continue
-
-			input_id = node["input"]
-			if input_id not in results:
-				raise ValueError(f"Input must precede node {node['id']!r}: {input_id!r}")
-			results[node["id"]] = TextInterface.execute(
-				node["operation"], results[input_id], column=node["column"]
-			)
-
-		if output not in results:
-			raise ValueError(f"Unknown DAG output: {output!r}")
-		return results[output].copy()
+			outputs_by_node[node.node_id] = result
+			for port_id in node.output_port_ids:
+				outputs_by_port[port_id] = result
+		return outputs_by_node
