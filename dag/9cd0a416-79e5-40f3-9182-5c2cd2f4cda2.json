@@ -1,0 +1,68 @@
+{
+    "success": true,
+    "message": "Operation retrieved successfully.",
+    "code": "OPERATION_RETRIEVED",
+    "data": {
+        "id": "9cd0a416-79e5-40f3-9182-5c2cd2f4cda2",
+        "created_at": "2026-09-11T20:28:03.272788Z",
+        "edited_at": "2026-09-11T20:28:03.272788Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+        "name": "outer_join",
+        "description": "Unir conservando todas las filas de ambos lados",
+        "operation_category_id": "d74f874d-af66-4fc3-abe8-1bf5d9fbccbb",
+        "operation_template_id": "22762176-aaab-4119-9dce-9a46fcbea5cf",
+        "input_ports": [
+            {
+                "id": "32d14d0d-3f61-4e1e-8df6-172c481c35d2",
+                "created_at": "2026-09-11T20:28:03.272788Z",
+                "edited_at": "2026-09-11T20:28:03.272788Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "9cd0a416-79e5-40f3-9182-5c2cd2f4cda2",
+                "required": true,
+                "ordinal": 0,
+                "position": "left",
+                "max_connections": 1,
+                "description": "Left-side dataset"
+            },
+            {
+                "id": "f8fd0c6f-809f-4b80-9f9f-881e86e989a3",
+                "created_at": "2026-09-11T20:28:03.272788Z",
+                "edited_at": "2026-09-11T20:28:03.272788Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "9cd0a416-79e5-40f3-9182-5c2cd2f4cda2",
+                "required": true,
+                "ordinal": 1,
+                "position": "left",
+                "max_connections": 1,
+                "description": "Right-side dataset"
+            }
+        ],
+        "output_ports": [
+            {
+                "id": "d4cdc46c-a35e-496e-9bc7-c0bb7e6c765e",
+                "created_at": "2026-09-11T20:28:03.272788Z",
+                "edited_at": "2026-09-11T20:28:03.272788Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "9cd0a416-79e5-40f3-9182-5c2cd2f4cda2",
+                "ordinal": 0,
+                "position": "right",
+                "max_connections": 2147483647,
+                "description": "Joined dataset"
+            }
+        ],
+        "parameters": []
+    }
+}

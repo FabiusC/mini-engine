@@ -1,0 +1,53 @@
+{
+    "success": true,
+    "message": "Operation retrieved successfully.",
+    "code": "OPERATION_RETRIEVED",
+    "data": {
+        "id": "1364e378-4648-4797-885c-078dcfaba29a",
+        "created_at": "2026-08-27T16:28:31.290593Z",
+        "edited_at": "2026-08-27T16:28:31.290593Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+        "name": "filter",
+        "description": "Filtrar filas según una o más condiciones",
+        "operation_category_id": "4122d917-4bda-492e-843c-6bd99c065e5a",
+        "operation_template_id": "5e59ae9e-07c3-4192-838c-5c6a1fac7c7f",
+        "input_ports": [
+            {
+                "id": "9686e38e-6a51-49a2-ae99-1e1c9814ee78",
+                "created_at": "2026-08-27T16:28:31.290593Z",
+                "edited_at": "2026-08-27T16:28:31.290593Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "1364e378-4648-4797-885c-078dcfaba29a",
+                "required": true,
+                "ordinal": 0,
+                "position": "left",
+                "max_connections": 1,
+                "description": "Input dataset"
+            }
+        ],
+        "output_ports": [
+            {
+                "id": "6ae04c16-f43c-48ff-9c8e-56b876077787",
+                "created_at": "2026-08-27T16:28:31.290593Z",
+                "edited_at": "2026-08-27T16:28:31.290593Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "1364e378-4648-4797-885c-078dcfaba29a",
+                "ordinal": 0,
+                "position": "right",
+                "max_connections": 2147483647,
+                "description": "Transformed dataset"
+            }
+        ],
+        "parameters": []
+    }
+}
