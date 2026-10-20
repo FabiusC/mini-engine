@@ -1,4 +1,4 @@
-"""Execute a PipelineDAG built from the saved API responses."""
+"""Execute a PipelineDAG"""
 
 from collections.abc import Mapping
 from typing import Any
