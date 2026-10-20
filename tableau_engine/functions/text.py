@@ -1,0 +1,31 @@
+"""Text dataframe transformations."""
+
+import pandas as pd
+
+from tableau_engine.functions.structural import resolve_output_column
+
+
+def lowercase(
+	df: pd.DataFrame,
+	column: str,
+	new_column: bool = False,
+	new_column_name: str | None = None,
+) -> pd.DataFrame:
+	"""Return a copy with lowercase text in the source column or a new column."""
+	result = df.copy()
+	target = resolve_output_column(result, column, new_column, new_column_name)
+	result[target] = result[column].astype("string").str.lower()
+	return result
+
+
+def uppercase(
+	df: pd.DataFrame,
+	column: str,
+	new_column: bool = False,
+	new_column_name: str | None = None,
+) -> pd.DataFrame:
+	"""Return a copy with uppercase text in the source column or a new column."""
+	result = df.copy()
+	target = resolve_output_column(result, column, new_column, new_column_name)
+	result[target] = result[column].astype("string").str.upper()
+	return result

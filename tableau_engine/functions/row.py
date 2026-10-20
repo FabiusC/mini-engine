@@ -1,4 +1,4 @@
-"""Filter dataframe rows with a single condition."""
+"""Row-level dataframe transformations."""
 
 import pandas as pd
 
@@ -19,3 +19,11 @@ def filter_rows(df: pd.DataFrame, column: str, operator: str, value: object) -> 
 	else:
 		raise ValueError(f"Unsupported filter operator: {operator!r}")
 	return df.loc[mask].copy()
+
+
+def limit_rows(df: pd.DataFrame, limit: int) -> pd.DataFrame:
+	"""Return a copy containing at most ``limit`` rows."""
+	limit = int(limit)
+	if limit < 0:
+		raise ValueError("limit must be zero or greater")
+	return df.head(limit).copy()
