@@ -3,22 +3,20 @@
 import json
 from pathlib import Path
 
-import pandas as pd
-
 from tableau_engine.core.dag_runner import DAGRunner
+from tableau_engine.io import read_datasource
 
 
 def main() -> None:
-	"""Process South orders using the editable text DAG."""
+	"""Join South and Central orders, then run the text DAG."""
 	project_root = Path(__file__).resolve().parent
 	dag_path = project_root / "pipeline.dag.json"
 	dag = json.loads(dag_path.read_text(encoding="utf-8"))
-	input_path = project_root / "data" / "orders_south_2018.csv"
-	try:
-		data = pd.read_csv(input_path, encoding="utf-8-sig")
-	except UnicodeDecodeError:
-		data = pd.read_csv(input_path, encoding="latin1")
-	result = DAGRunner(dag["nodes"]).run(data, dag["output"])
+	datasources = {
+		"south": read_datasource(project_root / "data" / "orders_south_2018.csv"),
+		"central": read_datasource(project_root / "data" / "Orders_Central.csv"),
+	}
+	result = DAGRunner(dag["nodes"]).run(datasources, dag["output"])
 	output_path = project_root / "output" / "processed_orders.csv"
 	output_path.parent.mkdir(parents=True, exist_ok=True)
 	result.to_csv(output_path, index=False)

@@ -1,23 +1,25 @@
 {
   "nodes": [
     {
-      "id": "segment_upper",
-      "input": "source",
+      "id": "orders_joined",
+      "inputs": ["south", "central"],
+      "operation": "JOIN",
+      "left_on": "Customer ID",
+      "right_on": "Customer ID",
+      "how": "inner"
+    },
+    {
+      "id": "south_segment_upper",
+      "input": "orders_joined",
       "operation": "UPPER",
-      "column": "Segment"
+      "column": "Segment_x"
     },
     {
-      "id": "normalized_state",
-      "input": "segment_upper",
-      "operation": "LOWER",
-      "column": "State"
-    },
-    {
-      "id": "customer_lower",
-      "input": "normalized_state",
-      "operation": "LOWER",
-      "column": "Customer Name"
+      "id": "central_segment_upper",
+      "input": "south_segment_upper",
+      "operation": "UPPER",
+      "column": "Segment_y"
     }
   ],
-  "output": "customer_lower"
+  "output": "central_segment_upper"
 }
