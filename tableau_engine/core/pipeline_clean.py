@@ -5,7 +5,10 @@ from typing import Any
 
 
 def _records(response: Any, label: str) -> list[dict[str, Any]]:
-	"""Normalize an API envelope, one record, or a record list to a list."""
+	"""Normalize an API envelope, one record, or a record list to a list.
+
+	The result is always a list of dictionaries, regardless of the input form.
+	"""
 	if isinstance(response, Mapping):
 		response = response.get("data", [])
 	if response is None:
@@ -15,8 +18,6 @@ def _records(response: Any, label: str) -> list[dict[str, Any]]:
 	if isinstance(response, list) and all(isinstance(item, Mapping) for item in response):
 		return [dict(item) for item in response]
 	raise ValueError(f"{label} must contain an object or a list of objects")
-
-
 def merge_pipeline_clean(
 	edges_json: Mapping[str, Any],
 	nodes_json: Mapping[str, Any],
@@ -24,9 +25,12 @@ def merge_pipeline_clean(
 ) -> dict[str, list[dict[str, Any]]]:
 	"""Return edges enriched with compact source and target node definitions.
 
-	Each embedded node contains its ID, simplified ports, and the operation ID/name.
-	The function does not execute or reorder operations; it only joins API responses.
+	Each embedded endpoint contains its ID, simplified ports, and operation ID/name.
+	Deleted records are omitted. Missing endpoint nodes are represented by ``None``.
+	This function only reshapes API responses; it does not execute operations or
+	reorder the graph.
 	"""
+	# Index operations once so each node can attach its compact operation definition.
 	operations = {
 		operation.get("id"): {
 			"id": operation.get("id"),
@@ -35,7 +39,7 @@ def merge_pipeline_clean(
 		for operation in _records(operations_json, "operations")
 		if operation.get("id") is not None
 	}
-
+	# Keep active nodes and only the port fields required by the clean output.
 	nodes: dict[str, dict[str, Any]] = {}
 	for node in _records(nodes_json, "nodes"):
 		if node.get("is_deleted"):
@@ -63,7 +67,7 @@ def merge_pipeline_clean(
 			],
 			"operation": operations.get(node.get("operation_id")),
 		}
-
+	# Preserve edge IDs and connect each edge to its compact source and target node.
 	clean_edges = []
 	for edge in _records(edges_json, "edges"):
 		if edge.get("is_deleted"):

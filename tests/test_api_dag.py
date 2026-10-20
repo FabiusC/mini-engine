@@ -1,3 +1,5 @@
+"""Verify the compact DAG output built from local API snapshots."""
+
 import json
 from pathlib import Path
 
@@ -8,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _read_operation_responses() -> dict[str, list[dict[str, object]]]:
+	"""Read operation definitions referenced by active nodes in the fixture."""
 	nodes_json = json.loads((ROOT / "dag" / "nodes.json").read_text(encoding="utf-8"))
+	# Avoid loading operation snapshots that are not part of this graph.
 	operation_ids = {
 		node["operation_id"]
 		for node in nodes_json["data"]
@@ -23,6 +27,7 @@ def _read_operation_responses() -> dict[str, list[dict[str, object]]]:
 
 
 def test_merge_pipeline_clean_embeds_compact_nodes_in_edges() -> None:
+	"""Each edge includes compact endpoint nodes and their operation metadata."""
 	nodes_json = json.loads((ROOT / "dag" / "nodes.json").read_text(encoding="utf-8"))
 	edges_json = json.loads((ROOT / "dag" / "edges.json").read_text(encoding="utf-8"))
 	clean_dag = merge_pipeline_clean(edges_json, nodes_json, _read_operation_responses())
@@ -50,6 +55,7 @@ def test_merge_pipeline_clean_embeds_compact_nodes_in_edges() -> None:
 
 
 def test_merge_pipeline_clean_accepts_data_envelopes_and_ignores_deleted_records() -> None:
+	"""API envelopes are accepted and deleted endpoint nodes are omitted."""
 	result = merge_pipeline_clean(
 		{"data": [{"id": "edge", "source_node_id": "source", "target_node_id": "missing"}]},
 		{"data": [{
