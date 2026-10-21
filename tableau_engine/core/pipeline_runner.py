@@ -47,9 +47,12 @@ class PipelineRunner:
 		"""Merge stored and runtime parameters, resolving relative file paths."""
 		stored = node.get("parameters")
 		resolved = {**(stored if isinstance(stored, Mapping) else {}), **overrides.get(node["id"], {})}
-		filepath = resolved.get("filepath")
-		if self.base_dir is not None and isinstance(filepath, str) and not Path(filepath).is_absolute():
-			resolved["filepath"] = self.base_dir / filepath
+		for key in ("filepath", "filepath_or_connection", "output_path"):
+			if key == "filepath_or_connection" and resolved.get("source_type") == "sql":
+				continue
+			filepath = resolved.get(key)
+			if self.base_dir is not None and isinstance(filepath, (str, Path)) and not Path(filepath).is_absolute():
+				resolved[key] = self.base_dir / filepath
 		return resolved
 
 	def run(

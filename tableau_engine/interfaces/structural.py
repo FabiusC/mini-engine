@@ -7,11 +7,14 @@ import pandas as pd
 
 from tableau_engine.functions.structural import (
 	add_column,
+	aggregate,
 	change_data_type,
 	drop_column,
 	join,
+	pivot,
 	rename_column,
 	sort_rows,
+	union,
 )
 from tableau_engine.interfaces.inputs import require_inputs
 
@@ -24,13 +27,23 @@ class StructuralInterface:
 		"add_column": add_column,
 		"sort": sort_rows,
 		"drop-column": drop_column,
+		"drop_column": drop_column,
 		"rename-column": rename_column,
+		"rename_column": rename_column,
 		"change-data-type": change_data_type,
+		"change_data_type": change_data_type,
+		"aggregate": aggregate,
+		"pivot": pivot,
 	}
 
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
 		"""Apply a join or a structural operation to dataframe inputs."""
+		if operation == "union":
+			return union(inputs, **parameters)
+		if operation == "join":
+			require_inputs(operation, inputs, 2)
+			return join(inputs[0], inputs[1], **parameters)
 		how = StructuralInterface._join_types.get(operation)
 		if how is not None:
 			require_inputs(operation, inputs, 2)

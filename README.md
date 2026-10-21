@@ -37,7 +37,7 @@ fachada de su categoría mediante `core/operation_registry.py`:
 | text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
 | numeric | `absolute`, `ceiling`, `clean_float`, `floor`, `max`, `min`, `power`, `round` | `column`, `new_column`, `new_column_name`; `column_a`, `column_b`, `new_column_name` para `max`/`min`; `value` para `power`; `decimals` para `round` |
 
-En las operaciones de texto, `new_column: false` (por defecto) actualiza la columna
+En las operaciones antiguas de texto, `new_column: false` (por defecto) actualiza la columna
 original. Con `true`, el resultado va a `new_column_name` o, si no se indica, a la
 columna original con el siguiente índice libre (`City_1`, `City_2`, ...).
 
@@ -52,4 +52,134 @@ indicar `left_on` y `right_on`.
 python -m pip install -r requirements.txt
 python -m pytest -q
 python main.py
+```
+
+## Motor de operaciones de datos
+
+Todas las operaciones siguientes se pueden ejecutar mediante `PipelineRunner` usando
+el nombre en `operation.name` y los argumentos en `parameters`. Las funciones pandas
+se encuentran en `tableau_engine/functions/`; las fachadas en
+`tableau_engine/interfaces/` validan el número de entradas.
+
+Las transformaciones no modifican los DataFrames de entrada, de modo que las ramas
+del DAG permanecen independientes. Los errores de columnas, conversiones y
+configuración se propagan; no se evalúan expresiones Python procedentes del JSON.
+
+### Selección de columna de salida
+
+Las transformaciones de texto, numéricas, fechas, lógicas y `change_data_type` aceptan:
+
+- `create_new_column: false` (por defecto): sobrescribe la columna fuente.
+- `create_new_column: true`: conserva la fuente y escribe en `new_column_name`, o en
+  `<columna>_processed` si no se proporciona. Ante una colisión del nombre generado
+  se usa `_processed_1`, `_processed_2`, etc.
+- Un nombre explícito vacío, ya existente o indicado sin activar la creación
+  provoca un error; nunca se sobrescribe otra columna accidentalmente.
+
+`concat` toma la primera columna como fuente; `arithmetic`, `column_a`; `date_diff`,
+`start_column`. `drop_column` y `rename_column` son excepciones estructurales:
+eliminan o renombran, sin parámetros de creación de columna.
+
+Se mantienen los nombres antiguos y sus parámetros: `uppercase`, `lowercase`,
+`absolute`, `drop-column`, `rename-column`, `change-data-type`, `new_type` y
+`new_column`. Este último sigue generando nombres indexados como `City_1`; el
+parámetro nuevo genera `City_processed`. No se deben combinar controles contradictorios.
+Las extensiones antiguas `min` y `max` siguen requiriendo `new_column_name`.
+
+### Operaciones de tabla
+
+| Nombre | Entradas del DAG | Parámetros |
+|---|---|---|
+| `input` | 0 | `source_type`: `csv`, `excel`, `parquet`, `sql`; `filepath_or_connection`; `table_or_sheet` opcional; `encoding="utf-8"`, `delimiter=","` para CSV |
+| `output` | 1 | `destination_type`: `csv`, `excel`, `parquet`; `output_path`; `write_mode="overwrite"` o `"append"`; `encoding` y `delimiter` para CSV |
+| `sample` | 1 | `sample_type`: `random` o `head`; `fraction_or_count`; `random_state` opcional |
+| `join` | 2 | `how="inner"`: `inner`, `left`, `right`, `outer`; `left_on`, `right_on`: string o lista; `suffixes` opcional |
+| `union` | 2 o más | `match_type="auto"` por nombres o `"manual"` por posición |
+| `aggregate` | 1 | `group_by`: lista; `aggregations`: diccionario de columnas a funciones pandas, por ejemplo `{"sales": "sum"}` |
+| `pivot` | 1 | `pivot_type`: `columns_to_rows` o `rows_to_columns`; `index_cols`, `target_col`, `values_col` |
+| `filter` | 1 | `column`, `operator`: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `isnull`; `value` (se omite con `isnull`) |
+
+- Las rutas locales nuevas también se resuelven respecto a `base_dir`; las conexiones
+  SQL no se tratan como rutas. SQL requiere `table_or_sheet` como nombre de tabla y
+  una URL SQLAlchemy. Para motores distintos de SQLite hay que instalar su driver.
+- Excel lee la primera hoja si no se especifica otra. Se incluyen `openpyxl`,
+  `pyarrow` y `SQLAlchemy` para XLSX, Parquet y SQL; otros formatos de Excel pueden
+  requerir motores adicionales de pandas.
+- `output` devuelve el DataFrame recibido para mantener el flujo del DAG, sin guardar
+  el índice. Crea directorios de destino. `append` crea el archivo si no existe y,
+  si existe, exige los mismos nombres y orden de columnas. Los tres formatos leen
+  y reescriben los datos combinados en memoria; CSV conserva una sola cabecera.
+  Excel actualiza la primera hoja y conserva las demás (no garantiza conservar su formato).
+- `sample` interpreta un entero como cantidad y un float entre 0 y 1 como fracción:
+  `1` es una fila, `1.0` es el 100%. `head` trunca la cantidad fraccional;
+  `random` usa el redondeo de pandas y muestrea sin reemplazo.
+- `union manual` exige igual número de columnas y usa los nombres del primer flujo.
+  `auto` permite columnas diferentes y rellena ausencias con nulos.
+- `aggregate` conserva los grupos con claves nulas; `group_by=[]` agrega la tabla
+  completa. Si se pasan listas de funciones, pandas conserva columnas MultiIndex.
+- Unpivot convierte todas las columnas no incluidas en `index_cols` en pares
+  `target_col`/`values_col`. Pivot exige claves únicas; no agrega duplicados
+  implícitamente.
+- Los filtros excluyen nulos de las comparaciones; `isnull` los selecciona.
+  `contains` busca texto literal, no expresiones regulares.
+
+### Transformaciones de campos
+
+Además de los controles de salida, aceptan:
+
+| Nombre | Parámetros |
+|---|---|
+| `drop_column` | `columns`: lista de nombres (también se mantiene `column`) |
+| `rename_column` | `column`, `new_name` |
+| `change_data_type` | `column`, `target_type`: `int`, `float`, `str`, `bool`, `datetime` u otro dtype pandas |
+| `lower`, `upper`, `trim`, `ltrim`, `rtrim` | `column` |
+| `substring` | `column`, `start` (base cero, admite negativos), `length` no negativa |
+| `replace` | `column`, `old_text`, `new_text` (sustitución literal) |
+| `split` | `column`, `delimiter` literal no vacío, `index` opcional (admite negativos) |
+| `concat` | `columns`: lista no vacía de columnas, `separator=""` |
+| `ceiling`, `floor`, `abs` | `column` |
+| `round` | `column`, `decimals=0` |
+| `arithmetic` | `column_a`, `operator`: `+`, `-`, `*`, `/`; `column_b_or_value`: nombre de columna (string) o constante numérica |
+| `date_parser` | `column`, `date_format` (formato de `pd.to_datetime`) |
+| `date_add`, `date_sub` | `column`, `unit`: `days`, `months`, `years`; `amount`: entero |
+| `date_diff` | `start_column`, `end_column`, `unit="days"`: `days`, `months`, `years` |
+| `extract_date_part` | `column`, `part`: `year`, `month`, `day`, `weekday` |
+| `coalesce`, `ifnull` | `column`, `default_value` |
+| `conditional_map` | `column`, `condition_func`, `true_value`, `false_value` |
+
+- Las cadenas usan el dtype nullable `string`; `concat` propaga los nulos.
+  `split` con `index` devuelve nulo para posiciones inexistentes. Sin `index`,
+  exige `create_new_column=true` y expande en `<nombre>_0`, `<nombre>_1`, etc.
+  (`<nombre>` es `new_column_name` o el nombre generado). Las colisiones se rechazan.
+- Las conversiones de tipo siguen `astype` de pandas (por ejemplo, `bool` usa
+  veracidad, no interpreta palabras como `"false"`); `datetime` usa `pd.to_datetime`.
+  No se sustituyen datos inválidos silenciosamente.
+- La aritmética convierte columnas con `pd.to_numeric`; dividir por cero provoca
+  error. `ceiling` y `floor` usan las ufuncs vectorizadas de NumPy porque pandas
+  no ofrece un método equivalente de Series.
+- Las fechas usan `pd.to_datetime` y `pd.DateOffset`; los meses/años ajustan fechas
+  al último día disponible (31 de enero + un mes = 28/29 de febrero).
+  `date_diff` calcula fin menos inicio: días transcurridos fraccionarios o meses/años
+  completos con signo, comparando día y hora del aniversario (31 de enero a 29 de
+  febrero no completa un mes). Propaga `NaT`. `weekday` usa lunes=0 y domingo=6.
+- `coalesce`/`ifnull` reemplazan nulos y la cadena vacía, no espacios, ceros o `False`.
+  El valor predeterminado debe ser compatible con el dtype de la columna.
+- `conditional_map` acepta en JSON `{"operator": ">", "value": 100}` con los mismos
+  operadores que `filter`. Desde Python también acepta una función vectorizada,
+  por ejemplo `lambda series: series.gt(100)`, que debe devolver una Series booleana
+  con el mismo índice. Las condiciones nulas seleccionan `false_value`.
+
+Ejemplo de parámetros de un nodo:
+
+```json
+{
+  "operation": {"name": "arithmetic"},
+  "parameters": {
+    "column_a": "sales",
+    "operator": "*",
+    "column_b_or_value": 1.21,
+    "create_new_column": true,
+    "new_column_name": "sales_with_tax"
+  }
+}
 ```

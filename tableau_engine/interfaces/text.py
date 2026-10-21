@@ -5,14 +5,21 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.text import lowercase, uppercase
+from tableau_engine.functions.text import (
+	concat, lowercase, ltrim, replace, rtrim, split, substring, trim, uppercase,
+)
 from tableau_engine.interfaces.inputs import require_inputs
 
 
 class TextInterface:
-	"""Route text operations; each accepts ``new_column`` and ``new_column_name``."""
+	"""Route text operations with shared output-column controls."""
 
-	_operations = {"uppercase": uppercase, "lowercase": lowercase}
+	_operations = {
+		"uppercase": uppercase, "upper": uppercase,
+		"lowercase": lowercase, "lower": lowercase,
+		"trim": trim, "ltrim": ltrim, "rtrim": rtrim,
+		"substring": substring, "replace": replace, "split": split, "concat": concat,
+	}
 
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:

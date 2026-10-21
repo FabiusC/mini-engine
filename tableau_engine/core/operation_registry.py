@@ -1,12 +1,28 @@
 """Map pipeline operation names to the facade that executes them."""
 
 from tableau_engine.interfaces.io import IOInterface
+from tableau_engine.interfaces.datetime import DateTimeInterface
+from tableau_engine.interfaces.logical import LogicalInterface
 from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.row import RowInterface
 from tableau_engine.interfaces.structural import StructuralInterface
 from tableau_engine.interfaces.text import TextInterface
 
 OPERATION_INTERFACES = {
+	"input": IOInterface,
+	"output": IOInterface,
+	"join": StructuralInterface,
+	"union": StructuralInterface,
+	"aggregate": StructuralInterface,
+	"pivot": StructuralInterface,
+	"drop_column": StructuralInterface,
+	"rename_column": StructuralInterface,
+	"change_data_type": StructuralInterface,
+	"sample": RowInterface,
+	**dict.fromkeys(TextInterface._operations, TextInterface),
+	**dict.fromkeys(NumericInterface._operations, NumericInterface),
+	**dict.fromkeys(DateTimeInterface._operations, DateTimeInterface),
+	**dict.fromkeys(LogicalInterface._operations, LogicalInterface),
 	"read_csv": IOInterface,
 	"write_csv": IOInterface,
 	"inner_join": StructuralInterface,
@@ -17,17 +33,7 @@ OPERATION_INTERFACES = {
 	"change-data-type": StructuralInterface,
 	"limit": RowInterface,
 	"filter": RowInterface,
-	"uppercase": TextInterface,
-	"lowercase": TextInterface,
 	"add_column": StructuralInterface,
-	"absolute": NumericInterface,
-	"ceiling": NumericInterface,
-	"clean_float": NumericInterface,
-	"floor": NumericInterface,
-	"max": NumericInterface,
-	"min": NumericInterface,
-	"power": NumericInterface,
-	"round": NumericInterface,
 }
 
 

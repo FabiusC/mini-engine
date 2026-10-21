@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.io import read_csv, write_csv
+from tableau_engine.functions.io import input_data, output_data, read_csv, write_csv
 from tableau_engine.interfaces.inputs import require_inputs
 
 
@@ -15,6 +15,12 @@ class IOInterface:
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
 		"""Read a source without inputs, or write the single input dataframe."""
+		if operation == "input":
+			require_inputs(operation, inputs, 0)
+			return input_data(**parameters)
+		if operation == "output":
+			require_inputs(operation, inputs, 1)
+			return output_data(inputs[0], **parameters)
 		if operation == "read_csv":
 			require_inputs(operation, inputs, 0)
 			return read_csv(**parameters)

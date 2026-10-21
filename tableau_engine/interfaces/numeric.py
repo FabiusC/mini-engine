@@ -7,6 +7,7 @@ import pandas as pd
 
 from tableau_engine.functions.numeric import (
 	absolute,
+	arithmetic,
 	ceiling,
 	clean_float,
 	floor,
@@ -23,6 +24,8 @@ class NumericInterface:
 
 	_operations = {
 		"absolute": absolute,
+		"abs": absolute,
+		"arithmetic": arithmetic,
 		"ceiling": ceiling,
 		"clean_float": clean_float,
 		"floor": floor,

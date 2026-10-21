@@ -5,14 +5,14 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.row import filter_rows, limit_rows
+from tableau_engine.functions.row import filter_rows, limit_rows, sample
 from tableau_engine.interfaces.inputs import require_inputs
 
 
 class RowInterface:
 	"""Route row selection operations."""
 
-	_operations = {"filter": filter_rows, "limit": limit_rows}
+	_operations = {"filter": filter_rows, "limit": limit_rows, "sample": sample}
 
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:

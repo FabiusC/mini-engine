@@ -1,10 +1,10 @@
 """Numeric dataframe transformations."""
 
-import math
+import numpy as np
 
 import pandas as pd
 
-from tableau_engine.functions.structural import resolve_output_column
+from tableau_engine.functions.structural import assign_result, resolve_output_column
 
 
 def absolute(
@@ -12,10 +12,14 @@ def absolute(
 	column: str,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Return a copy with absolute values in the source or a new column."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
+	)
 	result[target] = pd.to_numeric(result[column], errors="raise").abs()
 	return result
 
@@ -25,10 +29,14 @@ def clean_float(
 	column: str,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Convert values to floats, replacing null or invalid values with zero."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
+	)
 	result[target] = (
 		pd.to_numeric(result[column], errors="coerce")
 		.fillna(0)
@@ -42,14 +50,16 @@ def ceiling(
 	column: str,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Return a copy with values rounded up in the source or a new column."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
-	numeric_values = pd.to_numeric(result[column], errors="raise")
-	result[target] = numeric_values.map(
-		lambda value: math.ceil(value) if pd.notna(value) else value
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
 	)
+	numeric_values = pd.to_numeric(result[column], errors="raise")
+	result[target] = np.ceil(numeric_values)
 	return result
 
 
@@ -110,14 +120,16 @@ def floor(
 	column: str,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Return a copy with values rounded down in the source or a new column."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
-	numeric_values = pd.to_numeric(result[column], errors="raise")
-	result[target] = numeric_values.map(
-		lambda value: math.floor(value) if pd.notna(value) else value
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
 	)
+	numeric_values = pd.to_numeric(result[column], errors="raise")
+	result[target] = np.floor(numeric_values)
 	return result
 
 
@@ -127,10 +139,14 @@ def power(
 	value: float,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Raise numeric values to ``value`` in the source or a new column."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
+	)
 	result[target] = pd.to_numeric(result[column], errors="raise").pow(value)
 	return result
 
@@ -141,9 +157,39 @@ def round_column(
 	decimals: int = 0,
 	new_column: bool = False,
 	new_column_name: str | None = None,
+	*,
+	create_new_column: bool | None = None,
 ) -> pd.DataFrame:
 	"""Return a copy with rounded values in the source or a new column."""
 	result = df.copy()
-	target = resolve_output_column(result, column, new_column, new_column_name)
+	target = resolve_output_column(
+		result, column, new_column, new_column_name, create_new_column=create_new_column
+	)
 	result[target] = pd.to_numeric(result[column], errors="raise").round(decimals)
 	return result
+
+
+def arithmetic(
+	df: pd.DataFrame, column_a: str, operator: str, column_b_or_value: str | float,
+	create_new_column: bool = False, new_column_name: str | None = None,
+) -> pd.DataFrame:
+	"""Apply vectorized arithmetic with a column or a numeric constant."""
+	left = pd.to_numeric(df[column_a], errors="raise")
+	right = (
+		pd.to_numeric(df[column_b_or_value], errors="raise")
+		if isinstance(column_b_or_value, str) else column_b_or_value
+	)
+	if operator == "+":
+		values = left.add(right)
+	elif operator == "-":
+		values = left.sub(right)
+	elif operator == "*":
+		values = left.mul(right)
+	elif operator == "/":
+		zero_divisor = (right == 0).any() if isinstance(right, pd.Series) else right == 0
+		if zero_divisor:
+			raise ValueError("Division by zero")
+		values = left.div(right)
+	else:
+		raise ValueError(f"Unsupported arithmetic operator: {operator!r}")
+	return assign_result(df, column_a, values, create_new_column, new_column_name)
