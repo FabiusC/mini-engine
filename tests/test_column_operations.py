@@ -40,13 +40,17 @@ def test_new_column_uses_the_requested_name() -> None:
 	[
 		({"new_column": True, "new_column_name": "name_1"}, "already exists"),
 		({"new_column": False, "new_column_name": "other"}, "requires new_column"),
-		({"column": "missing"}, "not present"),
 	],
 )
 def test_invalid_output_column_requests_are_rejected(parameters: dict, message: str) -> None:
 	arguments = {"column": "name", **parameters}
 	with pytest.raises(ValueError, match=message):
 		TextInterface.execute("uppercase", [_frame()], **arguments)
+
+
+def test_missing_source_column_uses_pandas_key_error() -> None:
+	with pytest.raises(KeyError):
+		TextInterface.execute("uppercase", [_frame()], column="missing")
 
 
 def test_add_column_fills_a_constant_and_rejects_existing_names() -> None:

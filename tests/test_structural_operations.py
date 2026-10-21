@@ -42,21 +42,30 @@ def test_rename_column_and_change_data_type() -> None:
 
 
 @pytest.mark.parametrize(
-	"operation, parameters, message",
+	"operation, parameters",
 	[
-		("sort", {"column": "missing"}, "not present"),
-		("sort", {"column": "value", "direction": "sideways"}, "direction"),
-		("drop-column", {"column": "missing"}, "not present"),
-		("rename-column", {"column": "value", "new_name": "other"}, "already exists"),
-		("change-data-type", {"column": "missing", "new_type": "str"}, "not present"),
+		("sort", {"column": "missing"}),
+		("drop-column", {"column": "missing"}),
+		("change-data-type", {"column": "missing", "new_type": "str"}),
 	],
 )
-def test_structural_operations_reject_invalid_columns_or_parameters(
+def test_structural_operations_rely_on_pandas_for_missing_columns(
 	operation: str,
 	parameters: dict[str, str],
-	message: str,
 ) -> None:
 	frame = pd.DataFrame({"value": [1], "other": [2]})
 
-	with pytest.raises(ValueError, match=message):
+	with pytest.raises(KeyError):
 		StructuralInterface.execute(operation, [frame], **parameters)
+
+
+def test_sort_rejects_invalid_direction() -> None:
+	frame = pd.DataFrame({"value": [1]})
+	with pytest.raises(ValueError, match="direction"):
+		StructuralInterface.execute("sort", [frame], column="value", direction="sideways")
+
+
+def test_rename_rejects_existing_destination() -> None:
+	frame = pd.DataFrame({"value": [1], "other": [2]})
+	with pytest.raises(ValueError, match="already exists"):
+		StructuralInterface.execute("rename-column", [frame], column="value", new_name="other")

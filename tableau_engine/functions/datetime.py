@@ -34,7 +34,7 @@ class DateTimeProcessor:
 		df: pd.DataFrame, column: str, unit: str, amount: int,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
-		if isinstance(amount, bool) or not isinstance(amount, int):
+		if isinstance(amount, bool):
 			raise ValueError("amount must be an integer")
 		return DateTimeProcessor.date_add(df, column, unit, -amount, create_new_column, new_column_name)
 

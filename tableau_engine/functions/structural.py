@@ -55,9 +55,6 @@ class StructuralProcessor:
 		if selected is None:
 			raise ValueError("columns is required")
 		names = [selected] if isinstance(selected, str) else list(selected)
-		missing = [name for name in names if name not in df.columns]
-		if missing:
-			raise ValueError(f"Columns {missing!r} are not present in the input")
 		return df.drop(columns=names)
 
 	@staticmethod
@@ -95,8 +92,6 @@ class StructuralProcessor:
 		create_new_column: bool | None = None,
 	) -> str:
 		"""Resolve modern processed names while retaining legacy indexed names."""
-		if column not in df.columns:
-			raise ValueError(f"Column {column!r} is not present in the input")
 		if create_new_column is not None:
 			if not isinstance(create_new_column, bool):
 				raise ValueError("create_new_column must be a boolean")
@@ -200,8 +195,6 @@ class StructuralProcessor:
 		direction: str = "asc",
 	) -> pd.DataFrame:
 		"""Return a copy sorted by ``column`` in ascending or descending order."""
-		if column not in df.columns:
-			raise ValueError(f"Column {column!r} is not present in the input")
 		directions = {"asc": True, "desc": False, "des": False}
 		try:
 			ascending = directions[direction.lower()]

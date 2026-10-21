@@ -74,9 +74,6 @@ class NumericProcessor:
 		new_column_name: str,
 	) -> pd.DataFrame:
 		"""Add a column with the row-wise maximum of two numeric columns."""
-		if column_a not in df.columns or column_b not in df.columns:
-			missing = [column for column in (column_a, column_b) if column not in df.columns]
-			raise ValueError(f"Columns {missing!r} are not present in the input")
 		if not new_column_name:
 			raise ValueError("new_column_name is required")
 		if new_column_name in df.columns:
@@ -100,9 +97,6 @@ class NumericProcessor:
 		new_column_name: str,
 	) -> pd.DataFrame:
 		"""Add a column with the row-wise minimum of two numeric columns."""
-		if column_a not in df.columns or column_b not in df.columns:
-			missing = [column for column in (column_a, column_b) if column not in df.columns]
-			raise ValueError(f"Columns {missing!r} are not present in the input")
 		if not new_column_name:
 			raise ValueError("new_column_name is required")
 		if new_column_name in df.columns:

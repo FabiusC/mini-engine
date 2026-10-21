@@ -32,8 +32,6 @@ class RowProcessor:
 	@staticmethod
 	def filter_rows(df: pd.DataFrame, column: str, operator: str, value: object = None) -> pd.DataFrame:
 		"""Return rows matching a comparison, literal contains, or null test."""
-		if column not in df.columns:
-			raise ValueError(f"Filter column {column!r} is not present in the input")
 		mask = RowProcessor.condition_mask(df[column], operator, value)
 		return df.loc[mask].copy()
 
