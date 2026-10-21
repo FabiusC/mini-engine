@@ -13,7 +13,11 @@ class StructuralInterface:
 	"""Route joins and dataframe-structure operations."""
 
 	_join_types = {"inner_join": "inner", "outer_join": "outer"}
-	_transformations = {
+	_operations = {
+		"union": StructuralProcessor.union,
+		"join": StructuralProcessor.join,
+		"inner_join": StructuralProcessor.join,
+		"outer_join": StructuralProcessor.join,
 		"add_column": StructuralProcessor.add_column,
 		"sort": StructuralProcessor.sort_rows,
 		"drop-column": StructuralProcessor.drop_column,
@@ -31,15 +35,15 @@ class StructuralInterface:
 		"""Apply a join or a structural operation to dataframe inputs."""
 		if operation == "union":
 			return StructuralProcessor.union(inputs, **parameters)
+		function = StructuralInterface._operations.get(operation)
+		if function is None:
+			raise ValueError(f"Unknown structural operation: {operation}")
 		if operation == "join":
 			require_inputs(operation, inputs, 2)
-			return StructuralProcessor.join(inputs[0], inputs[1], **parameters)
+			return function(inputs[0], inputs[1], **parameters)
 		how = StructuralInterface._join_types.get(operation)
 		if how is not None:
 			require_inputs(operation, inputs, 2)
-			return StructuralProcessor.join(inputs[0], inputs[1], how=how, **parameters)
-		function = StructuralInterface._transformations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown structural operation: {operation}")
+			return function(inputs[0], inputs[1], how=how, **parameters)
 		require_inputs(operation, inputs, 1)
 		return function(inputs[0], **parameters)

@@ -8,32 +8,19 @@ from tableau_engine.interfaces.row import RowInterface
 from tableau_engine.interfaces.structural import StructuralInterface
 from tableau_engine.interfaces.text import TextInterface
 
+INTERFACES = (
+	IOInterface,
+	DateTimeInterface,
+	LogicalInterface,
+	NumericInterface,
+	RowInterface,
+	StructuralInterface,
+	TextInterface,
+)
 OPERATION_INTERFACES = {
-	"input": IOInterface,
-	"output": IOInterface,
-	"join": StructuralInterface,
-	"union": StructuralInterface,
-	"aggregate": StructuralInterface,
-	"pivot": StructuralInterface,
-	"drop_column": StructuralInterface,
-	"rename_column": StructuralInterface,
-	"change_data_type": StructuralInterface,
-	"sample": RowInterface,
-	**dict.fromkeys(TextInterface._operations, TextInterface),
-	**dict.fromkeys(NumericInterface._operations, NumericInterface),
-	**dict.fromkeys(DateTimeInterface._operations, DateTimeInterface),
-	**dict.fromkeys(LogicalInterface._operations, LogicalInterface),
-	"read_csv": IOInterface,
-	"write_csv": IOInterface,
-	"inner_join": StructuralInterface,
-	"outer_join": StructuralInterface,
-	"sort": StructuralInterface,
-	"drop-column": StructuralInterface,
-	"rename-column": StructuralInterface,
-	"change-data-type": StructuralInterface,
-	"limit": RowInterface,
-	"filter": RowInterface,
-	"add_column": StructuralInterface,
+	operation: interface
+	for interface in INTERFACES
+	for operation in interface._operations
 }
 
 

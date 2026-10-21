@@ -12,19 +12,21 @@ from tableau_engine.interfaces.inputs import require_inputs
 class IOInterface:
 	"""Route input and output operations."""
 
+	_operations = {
+		"input": IOProcessor.input_data,
+		"output": IOProcessor.output_data,
+		"read_csv": IOProcessor.read_csv,
+		"write_csv": IOProcessor.write_csv,
+	}
+
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
 		"""Read a source without inputs, or write the single input dataframe."""
-		if operation == "input":
+		function = IOInterface._operations.get(operation)
+		if function is None:
+			raise ValueError(f"Unknown IO operation: {operation}")
+		if operation in ("input", "read_csv"):
 			require_inputs(operation, inputs, 0)
-			return IOProcessor.input_data(**parameters)
-		if operation == "output":
-			require_inputs(operation, inputs, 1)
-			return IOProcessor.output_data(inputs[0], **parameters)
-		if operation == "read_csv":
-			require_inputs(operation, inputs, 0)
-			return IOProcessor.read_csv(**parameters)
-		if operation == "write_csv":
-			require_inputs(operation, inputs, 1)
-			return IOProcessor.write_csv(inputs[0], **parameters)
-		raise ValueError(f"Unknown IO operation: {operation}")
+			return function(**parameters)
+		require_inputs(operation, inputs, 1)
+		return function(inputs[0], **parameters)

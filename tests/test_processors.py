@@ -15,6 +15,7 @@ from tableau_engine.functions.row import RowProcessor
 from tableau_engine.functions.structural import StructuralProcessor
 from tableau_engine.functions.text import TextProcessor
 from tableau_engine.interfaces.datetime import DateTimeInterface
+from tableau_engine.interfaces.io import IOInterface
 from tableau_engine.interfaces.logical import LogicalInterface
 from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.row import RowInterface
@@ -44,7 +45,8 @@ def test_operations_are_contained_in_processor_as_static_methods(processor) -> N
 	(NumericInterface, NumericProcessor, "_operations"),
 	(TextInterface, TextProcessor, "_operations"),
 	(RowInterface, RowProcessor, "_operations"),
-	(StructuralInterface, StructuralProcessor, "_transformations"),
+	(StructuralInterface, StructuralProcessor, "_operations"),
+	(IOInterface, IOProcessor, "_operations"),
 	(DateTimeInterface, DateTimeProcessor, "_operations"),
 	(LogicalInterface, LogicalProcessor, "_operations"),
 ])
