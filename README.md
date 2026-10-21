@@ -94,6 +94,35 @@ se encuentran dentro de clases en `tableau_engine/functions/`; las fachadas en
 
 ### API de procesadores
 
+`PandasDataProcessor` es el punto de acceso unificado al backend pandas, equivalente
+al agrupador `PolarDataProcessor` del backend Polars. Expone instancias independientes
+por categoría:
+
+| Atributo | Procesador |
+|---|---|
+| `structure` | `StructuralProcessor` |
+| `text` | `TextProcessor` |
+| `number` | `NumericProcessor` |
+| `row` | `RowProcessor` |
+| `io` | `IOProcessor` |
+| `datetime` | `DateTimeProcessor` |
+| `logical` | `LogicalProcessor` |
+
+```python
+from tableau_engine import PandasDataProcessor
+
+pandas_processor = PandasDataProcessor()
+df = pandas_processor.io.read_csv("data/orders_south_2018.csv")
+df = pandas_processor.text.trim(df, column="Customer Name")
+df = pandas_processor.number.absolute(
+    df, column="Sales", create_new_column=True
+)
+```
+
+El agrupador reutiliza las operaciones existentes sin convertir entre pandas y
+Polars ni añadir una dependencia de Polars. Los imports directos de los procesadores
+y el funcionamiento del DAG siguen disponibles sin cambios.
+
 Las operaciones ya no se importan como funciones sueltas. Se importan las clases
 `NumericProcessor`, `TextProcessor`, `StructuralProcessor`, `RowProcessor`,
 `IOProcessor`, `DateTimeProcessor` y `LogicalProcessor` desde sus módulos respectivos.
