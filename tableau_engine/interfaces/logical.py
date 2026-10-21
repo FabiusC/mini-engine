@@ -5,14 +5,14 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.logical import coalesce, conditional_map
+from tableau_engine.functions.logical import LogicalProcessor
 from tableau_engine.interfaces.inputs import require_inputs
 
 
 class LogicalInterface:
 	"""Route logical operations."""
 
-	_operations = {"coalesce": coalesce, "ifnull": coalesce, "conditional_map": conditional_map}
+	_operations = {"coalesce": LogicalProcessor.coalesce, "ifnull": LogicalProcessor.coalesce, "conditional_map": LogicalProcessor.conditional_map}
 
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:

@@ -1,76 +1,181 @@
-"""Verify the compact DAG output built from local API snapshots."""
+"""Verify normalized DAGs built from API snapshots and their execution."""
 
 import json
+import shutil
+from copy import deepcopy
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
+from main import export_clean_pipeline, run_pipeline
 from tableau_engine.core.pipeline_clean import merge_pipeline_clean
+from tableau_engine.core.pipeline_runner import PipelineRunner
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _read_operation_responses() -> dict[str, list[dict[str, object]]]:
-	"""Read operation definitions referenced by active nodes in the fixture."""
-	nodes_json = json.loads((ROOT / "dag" / "nodes.json").read_text(encoding="utf-8"))
-	# Avoid loading operation snapshots that are not part of this graph.
+	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
 	operation_ids = {
-		node["operation_id"]
-		for node in nodes_json["data"]
-		if not node.get("is_deleted")
+		node["operation_id"] for node in nodes["data"] if not node.get("is_deleted")
 	}
 	return {
 		"data": [
-			json.loads((ROOT / "dag" / f"{operation_id}.json").read_text(encoding="utf-8"))["data"]
-			for operation_id in operation_ids
+			json.loads((ROOT / "dag" / f"{id}.json").read_text(encoding="utf-8"))["data"]
+			for id in sorted(operation_ids)
 		]
 	}
 
 
-def test_merge_pipeline_clean_embeds_compact_nodes_in_edges() -> None:
-	"""Each edge includes compact endpoint nodes and their operation metadata."""
-	nodes_json = json.loads((ROOT / "dag" / "nodes.json").read_text(encoding="utf-8"))
-	edges_json = json.loads((ROOT / "dag" / "edges.json").read_text(encoding="utf-8"))
-	clean_dag = merge_pipeline_clean(edges_json, nodes_json, _read_operation_responses())
+def test_merge_snapshots_has_the_local_pipeline_schema() -> None:
+	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
+	edges = json.loads((ROOT / "dag/edges.json").read_text(encoding="utf-8"))
+	clean = merge_pipeline_clean(edges, nodes, _read_operation_responses())
 
-	assert len(clean_dag["edges"]) == len(edges_json["data"])
-	first_edge = clean_dag["edges"][0]
-	assert first_edge["source_node"]["operation"] == {
-		"id": "a41e3632-2549-49ea-b252-3b9e97b7b759",
-		"name": "inner_join",
+	assert set(clean) == {"nodes", "edges"}
+	assert len(clean["nodes"]) == len(nodes["data"])
+	assert len(clean["edges"]) == len(edges["data"])
+	assert clean["nodes"][0] == {
+		"id": nodes["data"][0]["id"],
+		"input_ports": [
+			{"id": port["id"], "ordinal": port["ordinal"]}
+			for port in nodes["data"][0]["input_ports"]
+		],
+		"output_ports": [
+			{"id": port["id"], "ordinal": port["ordinal"]}
+			for port in nodes["data"][0]["output_ports"]
+		],
+		"operation": {"id": "a41e3632-2549-49ea-b252-3b9e97b7b759", "name": "inner_join"},
+		"parameters": {},
 	}
-	assert first_edge["target_node"]["input_ports"][0] == {
-		"id": "e281e872-1e9c-4ff5-8ce1-997c629c5b01",
-		"description": "Left-side dataset",
-		"ordinal": 0,
+	assert set(clean["edges"][0]) == {
+		"id", "source_node_id", "target_node_id",
+		"source_output_port_id", "target_input_port_id",
 	}
-	assert set(first_edge) == {
-		"id",
-		"source_node_id",
-		"target_node_id",
-		"source_output_port_id",
-		"target_input_port_id",
-		"source_node",
-		"target_node",
+	runner = PipelineRunner(clean)
+	assert len(runner.datasource_port_ids) == 3
+	# The real snapshots have no source nodes or parameters; supply them explicitly.
+	datasources = {port: pd.DataFrame({"id": [1, 2, 3]}) for port in runner.datasource_port_ids}
+	parameters = {
+		node["id"]: {"limit": 2} if node["operation"]["name"] == "limit"
+		else {"column": "id", "operator": ">", "value": 1}
+		for node in clean["nodes"] if node["operation"]["name"] in ("limit", "filter")
+	}
+	results = runner.run(datasources, parameters)
+	assert sorted(results[runner.output_node_ids[0]]["id"].tolist()) == [1, 2, 3]
+	with pytest.raises(ValueError, match="Missing datasource"):
+		runner.run()
+
+
+def _node(id: str = "source") -> dict:
+	return {
+		"id": id, "operation_id": "op", "parameters": [],
+		"input_ports": [], "output_ports": [],
 	}
 
 
-def test_merge_pipeline_clean_accepts_data_envelopes_and_ignores_deleted_records() -> None:
-	"""API envelopes are accepted and deleted endpoint nodes are omitted."""
+def test_merge_filters_deleted_records_and_retains_isolated_nodes() -> None:
+	source = _node()
+	source["input_ports"] = [
+		{"id": "active", "ordinal": None},
+		{"id": "deleted_port", "ordinal": 1, "is_deleted": True},
+	]
+	deleted = {**_node("deleted"), "is_deleted": True}
 	result = merge_pipeline_clean(
-		{"data": [{"id": "edge", "source_node_id": "source", "target_node_id": "missing"}]},
-		{"data": [{
-			"id": "source",
-			"operation_id": "op",
-			"is_deleted": False,
-			"input_ports": [],
-			"output_ports": [],
-		}, {
-			"id": "deleted",
-			"operation_id": "op",
-			"is_deleted": True,
-		}]},
-		{"data": [{"id": "op", "name": "example"}]},
+		{"data": [
+			{"id": "deleted_node_edge", "source_node_id": "source", "target_node_id": "deleted"},
+			{"id": "deleted_edge", "is_deleted": True},
+		]},
+		{"data": [source, deleted, _node("isolated")]},
+		{"data": {"id": "op", "name": "example"}},
 	)
+	assert result["edges"] == []
+	assert [node["id"] for node in result["nodes"]] == ["source", "isolated"]
+	assert result["nodes"][0]["input_ports"] == [{"id": "active", "ordinal": 0}]
 
-	assert result["edges"][0]["source_node"]["operation"]["name"] == "example"
-	assert result["edges"][0]["target_node"] is None
+
+@pytest.mark.parametrize("parameters", [
+	{"column": "v", "create_new_column": True, "new_column_name": None, "value": 0},
+	[{"name": "column", "value": "v"}, {"name": "create_new_column", "value": False}],
+	None, [],
+])
+def test_merge_preserves_typed_parameters_without_mutating_inputs(parameters) -> None:
+	nodes = {"data": [{**_node(), "parameters": parameters}]}
+	before = deepcopy(nodes)
+	clean = merge_pipeline_clean({"data": []}, nodes, {"id": "op", "name": "absolute"})
+	expected = (
+		{item["name"]: item["value"] for item in parameters}
+		if isinstance(parameters, list) else parameters or {}
+	)
+	assert clean["nodes"][0]["parameters"] == expected
+	assert nodes == before
+
+
+@pytest.mark.parametrize("parameters", [
+	"value", [1], [{"name": "column"}], [{"value": "v"}],
+	[{"name": "column", "value": "v"}, {"name": "column", "value": "other"}],
+])
+def test_merge_rejects_invalid_or_duplicate_parameters(parameters) -> None:
+	with pytest.raises(ValueError, match="parameter"):
+		merge_pipeline_clean([], [{**_node(), "parameters": parameters}], {"id": "op", "name": "upper"})
+
+
+def test_merge_rejects_dangling_edges_missing_operations_and_duplicate_nodes() -> None:
+	with pytest.raises(ValueError, match="unknown node"):
+		merge_pipeline_clean(
+			[{"id": "edge", "source_node_id": "source", "target_node_id": "missing"}],
+			[_node()], {"id": "op", "name": "upper"},
+		)
+	with pytest.raises(ValueError, match="missing operation"):
+		merge_pipeline_clean([], [_node()], [])
+	with pytest.raises(ValueError, match="Duplicate node"):
+		merge_pipeline_clean([], [_node(), _node()], {"id": "op", "name": "upper"})
+
+
+def test_export_overwrites_real_snapshots_deterministically(tmp_path: Path) -> None:
+	for name in ["nodes.json", "edges.json"] + [f"{op['id']}.json" for op in _read_operation_responses()["data"]]:
+		shutil.copy(ROOT / "dag" / name, tmp_path / name)
+	path = tmp_path / "pipeline_clean.json"
+	path.write_text("stale content", encoding="utf-8")
+	export_clean_pipeline(tmp_path)
+	first = path.read_text(encoding="utf-8")
+	assert len(json.loads(first)["nodes"]) == 5
+	export_clean_pipeline(tmp_path)
+	assert path.read_text(encoding="utf-8") == first
+
+
+def test_generated_pipeline_can_replace_local_pipeline_file(tmp_path: Path, capsys) -> None:
+	dag = tmp_path / "dag"
+	dag.mkdir()
+	pd.DataFrame({"v": [-2, 3]}).to_csv(tmp_path / "input.csv", index=False)
+	local = {
+		"nodes": [
+			{"id": "read", "operation_id": "read_op", "input_ports": [],
+			 "output_ports": [{"id": "read_out", "ordinal": 0}],
+			 "parameters": {"filepath": "input.csv"}},
+			{"id": "absolute", "operation_id": "abs_op",
+			 "input_ports": [{"id": "abs_in", "ordinal": 0}],
+			 "output_ports": [{"id": "abs_out", "ordinal": 0}],
+			 "parameters": [{"name": "column", "value": "v"},
+				{"name": "create_new_column", "value": True}]},
+			{"id": "write", "operation_id": "write_op",
+			 "input_ports": [{"id": "write_in", "ordinal": 0}], "output_ports": [],
+			 "parameters": {"filepath": "output/result.csv"}},
+		],
+		"edges": [
+			{"id": "e1", "source_node_id": "read", "target_node_id": "absolute",
+			 "source_output_port_id": "read_out", "target_input_port_id": "abs_in"},
+			{"id": "e2", "source_node_id": "absolute", "target_node_id": "write",
+			 "source_output_port_id": "abs_out", "target_input_port_id": "write_in"},
+		],
+	}
+	for key in ("nodes", "edges"):
+		(dag / f"{key}.json").write_text(json.dumps({"data": local[key]}), encoding="utf-8")
+	for id, name in [("read_op", "read_csv"), ("abs_op", "absolute"), ("write_op", "write_csv")]:
+		(dag / f"{id}.json").write_text(json.dumps({"data": {"id": id, "name": name}}), encoding="utf-8")
+	export_clean_pipeline(dag)
+	run_pipeline(tmp_path, dag / "pipeline_clean.json")
+	assert pd.read_csv(tmp_path / "output/result.csv")["v_processed"].tolist() == [2, 3]
+	assert "write: 2 rows, 2 columns" in capsys.readouterr().out

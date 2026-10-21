@@ -5,9 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.text import (
-	concat, lowercase, ltrim, replace, rtrim, split, substring, trim, uppercase,
-)
+from tableau_engine.functions.text import TextProcessor
 from tableau_engine.interfaces.inputs import require_inputs
 
 
@@ -15,10 +13,10 @@ class TextInterface:
 	"""Route text operations with shared output-column controls."""
 
 	_operations = {
-		"uppercase": uppercase, "upper": uppercase,
-		"lowercase": lowercase, "lower": lowercase,
-		"trim": trim, "ltrim": ltrim, "rtrim": rtrim,
-		"substring": substring, "replace": replace, "split": split, "concat": concat,
+		"uppercase": TextProcessor.uppercase, "upper": TextProcessor.uppercase,
+		"lowercase": TextProcessor.lowercase, "lower": TextProcessor.lowercase,
+		"trim": TextProcessor.trim, "ltrim": TextProcessor.ltrim, "rtrim": TextProcessor.rtrim,
+		"substring": TextProcessor.substring, "replace": TextProcessor.replace, "split": TextProcessor.split, "concat": TextProcessor.concat,
 	}
 
 	@staticmethod

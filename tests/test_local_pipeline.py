@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 import main as app_main
 from tableau_engine.core.pipeline_runner import PipelineRunner
@@ -12,7 +13,8 @@ from tableau_engine.core.pipeline_runner import PipelineRunner
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_main_can_skip_building_pipeline_clean(monkeypatch) -> None:
+@pytest.mark.parametrize("pipeline_file", ["pipeline.json", "pipeline_clean.json"])
+def test_main_can_skip_building_pipeline_clean(monkeypatch, pipeline_file) -> None:
 	"""Skipping the clean DAG build does not skip local pipeline execution."""
 	run_calls = []
 	monkeypatch.setattr(
@@ -22,10 +24,10 @@ def test_main_can_skip_building_pipeline_clean(monkeypatch) -> None:
 	)
 	monkeypatch.setattr(app_main, "run_pipeline", lambda *args: run_calls.append(args))
 
-	app_main.main(build_pipeline_clean=False)
+	app_main.main(build_pipeline_clean=False, pipeline_file=pipeline_file)
 
 	assert len(run_calls) == 1
-	assert run_calls[0][1].name == "pipeline.json"
+	assert run_calls[0][1].name == pipeline_file
 
 
 def test_local_pipeline_runs_structural_operations_and_overwrites_output(tmp_path: Path) -> None:

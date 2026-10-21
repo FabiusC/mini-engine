@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.functions.structural import add_column
+from tableau_engine.functions.structural import StructuralProcessor
 from tableau_engine.interfaces.text import TextInterface
 
 
@@ -50,8 +50,8 @@ def test_invalid_output_column_requests_are_rejected(parameters: dict, message: 
 
 
 def test_add_column_fills_a_constant_and_rejects_existing_names() -> None:
-	result = add_column(_frame(), "region", "South")
+	result = StructuralProcessor.add_column(_frame(), "region", "South")
 
 	assert result["region"].tolist() == ["South", "South"]
 	with pytest.raises(ValueError, match="already exists"):
-		add_column(_frame(), "name", "x")
+		StructuralProcessor.add_column(_frame(), "name", "x")

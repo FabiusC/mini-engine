@@ -3,16 +3,46 @@
 `main.py` no consulta la API: consume las respuestas guardadas como snapshots en
 `dag/`: `nodes.json`, `edges.json` y los archivos de operación cuyo nombre es su ID. Llama a
 `merge_pipeline_clean(edges_json, nodes_json, operations_json)` y escribe el resultado
-compacto en `dag/pipeline_clean.json`.
+normalizado en `dag/pipeline_clean.json`, sobrescribiendo el archivo en cada generación.
 
 La construcción de `pipeline_clean.json` está activada por defecto. Para omitirla al
 invocar `main.py` desde Python, usa `main(build_pipeline_clean=False)`; el pipeline
 local de `dag/pipeline.json` seguirá ejecutándose.
 
-La salida contiene una lista `edges`. Cada arista conserva sus IDs y añade `source_node`
-y `target_node` con el ID, los puertos simplificados (`id`, `description`, `ordinal`) y
-la operación (`id`, `name`). Los nodos eliminados se omiten. Si una arista referencia
-un nodo que no está en la respuesta activa, el nodo anidado es `null`.
+La salida tiene el mismo formato que `dag/pipeline.json`: listas `nodes` y `edges`,
+sin duplicar los nodos dentro de las aristas. Cada nodo conserva `id`,
+`input_ports`/`output_ports` (solo `id`, `ordinal`), `operation` (`id`, `name`) y
+`parameters` como objeto. Se conservan también los nodos aislados.
+
+Los parámetros se toman de cada nodo: se aceptan objetos o listas de registros
+`{"name": "column", "value": "sales"}`. Las listas vacías o parámetros ausentes
+se convierten en `{}`; se conservan los tipos JSON, incluidos `false`, `0`, listas,
+objetos y `null`. Las listas con nombres duplicados o sin `name`/`value` provocan
+errores explícitos. No se inventan valores a partir del pipeline de ejemplo.
+
+Se omiten nodos, puertos, operaciones y aristas eliminados; también se omiten las
+aristas conectadas a nodos eliminados. Una operación ausente, un ID de nodo
+duplicado o una arista que referencia un nodo desconocido provoca un error.
+
+Para elegir el archivo, sin cambiar el runner:
+
+```python
+from main import main
+
+main(pipeline_file="pipeline_clean.json")
+```
+
+Esto genera el archivo antes de leerlo. Para leer uno ya generado, usa
+`main(build_pipeline_clean=False, pipeline_file="pipeline_clean.json")`.
+
+**Los snapshots actuales no son un pipeline de archivos autónomo:** tienen tres
+puertos externos, sin nodos de lectura, y parámetros vacíos. El archivo generado
+es compatible con `PipelineRunner`, pero necesita esos datos y la configuración
+de `limit`/`filter`. Se pueden proporcionar mediante
+`PipelineRunner.run(datasources=..., parameters=...)` o
+`run_pipeline(project_root, pipeline_path, datasources=..., parameters=...)`.
+Para ejecutarlo solo cambiando el archivo, las consultas deben incluir los nodos
+de entrada y los parámetros necesarios. Cambiar de archivo no añade esa información.
 
 ## Ejecutar el pipeline local
 
@@ -27,7 +57,8 @@ El pipeline previo de lectura, join, operaciones de texto y transformaciones
 numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
 `PipelineRunner` ordena los nodos por sus aristas y delega cada operación en la
-fachada de su categoría mediante `core/operation_registry.py`:
+fachada de su categoría mediante `core/operation_registry.py`. Cada fachada llama
+a los métodos estáticos del `Processor` correspondiente:
 
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
@@ -58,8 +89,34 @@ python main.py
 
 Todas las operaciones siguientes se pueden ejecutar mediante `PipelineRunner` usando
 el nombre en `operation.name` y los argumentos en `parameters`. Las funciones pandas
-se encuentran en `tableau_engine/functions/`; las fachadas en
+se encuentran dentro de clases en `tableau_engine/functions/`; las fachadas en
 `tableau_engine/interfaces/` validan el número de entradas.
+
+### API de procesadores
+
+Las operaciones ya no se importan como funciones sueltas. Se importan las clases
+`NumericProcessor`, `TextProcessor`, `StructuralProcessor`, `RowProcessor`,
+`IOProcessor`, `DateTimeProcessor` y `LogicalProcessor` desde sus módulos respectivos.
+Son métodos estáticos sin estado compartido; no necesitan instanciarse:
+
+```python
+from tableau_engine.functions.numeric import NumericProcessor
+from tableau_engine.functions.text import TextProcessor
+
+result = NumericProcessor.absolute(
+    df,
+    column="sales",
+    create_new_column=True,
+    new_column_name="absolute_sales",
+)
+result = TextProcessor.trim(result, column="customer_name")
+```
+
+Los imports anteriores como `from tableau_engine.functions.numeric import absolute`
+deben migrarse a `NumericProcessor.absolute`. Los nombres de operación y los
+parámetros de los pipelines JSON no cambian. Los helpers compartidos también
+pertenecen a los procesadores: `StructuralProcessor.resolve_output_column`,
+`StructuralProcessor.assign_result` y `RowProcessor.condition_mask`.
 
 Las transformaciones no modifican los DataFrames de entrada, de modo que las ramas
 del DAG permanecen independientes. Los errores de columnas, conversiones y

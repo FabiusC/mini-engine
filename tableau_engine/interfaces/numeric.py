@@ -5,17 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.numeric import (
-	absolute,
-	arithmetic,
-	ceiling,
-	clean_float,
-	floor,
-	max,
-	min,
-	power,
-	round_column,
-)
+from tableau_engine.functions.numeric import NumericProcessor
 from tableau_engine.interfaces.inputs import require_inputs
 
 
@@ -23,16 +13,16 @@ class NumericInterface:
 	"""Route numeric operations to their dataframe functions."""
 
 	_operations = {
-		"absolute": absolute,
-		"abs": absolute,
-		"arithmetic": arithmetic,
-		"ceiling": ceiling,
-		"clean_float": clean_float,
-		"floor": floor,
-		"max": max,
-		"min": min,
-		"power": power,
-		"round": round_column,
+		"absolute": NumericProcessor.absolute,
+		"abs": NumericProcessor.absolute,
+		"arithmetic": NumericProcessor.arithmetic,
+		"ceiling": NumericProcessor.ceiling,
+		"clean_float": NumericProcessor.clean_float,
+		"floor": NumericProcessor.floor,
+		"max": NumericProcessor.max,
+		"min": NumericProcessor.min,
+		"power": NumericProcessor.power,
+		"round": NumericProcessor.round_column,
 	}
 
 	@staticmethod

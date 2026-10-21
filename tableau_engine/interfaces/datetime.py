@@ -5,9 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.datetime import (
-	date_add, date_diff, date_parser, date_sub, extract_date_part,
-)
+from tableau_engine.functions.datetime import DateTimeProcessor
 from tableau_engine.interfaces.inputs import require_inputs
 
 
@@ -15,8 +13,8 @@ class DateTimeInterface:
 	"""Route pandas date and time transformations."""
 
 	_operations = {
-		"date_parser": date_parser, "date_add": date_add, "date_sub": date_sub,
-		"date_diff": date_diff, "extract_date_part": extract_date_part,
+		"date_parser": DateTimeProcessor.date_parser, "date_add": DateTimeProcessor.date_add, "date_sub": DateTimeProcessor.date_sub,
+		"date_diff": DateTimeProcessor.date_diff, "extract_date_part": DateTimeProcessor.extract_date_part,
 	}
 
 	@staticmethod
