@@ -239,6 +239,8 @@ Además de los controles de salida, aceptan:
 | `extract_date_part` | `column`, `part`: `year`, `month`, `day`, `weekday` |
 | `coalesce`, `ifnull` | `column`, `default_value` |
 | `conditional_map` | `column`, `condition_func`, `true_value`, `false_value` |
+| `and`, `or` | `column`, `sentencia1`, `sentencia2`, `reemplazar_campo`, `nombre_nueva_columna` |
+| `not`, `if`, `case`, `elseif` | `column`, `sentencia1`, `sentencia2` (según la operación), `reemplazar_campo`, `nombre_nueva_columna` |
 
 - Las cadenas usan el dtype nullable `string`; `concat` propaga los nulos.
   `split` con `index` devuelve nulo para posiciones inexistentes. Sin `index`,
@@ -261,6 +263,14 @@ Además de los controles de salida, aceptan:
   operadores que `filter`. Desde Python también acepta una función vectorizada,
   por ejemplo `lambda series: series.gt(100)`, que debe devolver una Series booleana
   con el mismo índice. Las condiciones nulas seleccionan `false_value`.
+- Las operaciones lógicas aceptan condiciones como `edad >= 18` o
+  `region == "West"` usando `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains` e
+  `isnull`. No ejecutan código. `and` y `or` combinan ambas sentencias; `not`
+  niega la primera; `if` y `case` devuelven la primera condición como booleano;
+  `elseif` devuelve la segunda condición como booleano. Los valores nulos no
+  satisfacen comparaciones y producen `False` en resultados lógicos. Para
+  reemplazar la columna fuente, `reemplazar_campo=true`; para crear una columna,
+  usa `reemplazar_campo=false` y proporciona `nombre_nueva_columna`.
 
 Ejemplo de parámetros de un nodo:
 

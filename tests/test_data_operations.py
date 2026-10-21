@@ -147,6 +147,55 @@ def test_null_handling_and_vectorized_condition_callable() -> None:
 
 
 @pytest.mark.parametrize(
+	"operation, expected",
+	[
+		("and", [False, True, False, False]),
+		("or", [True, True, True, False]),
+		("not", [True, False, False, False]),
+		("if", [False, True, True, False]),
+		("case", [False, True, True, False]),
+		("elseif", [True, True, False, False]),
+	],
+)
+def test_logical_conditions_create_boolean_results(operation, expected) -> None:
+	frame = pd.DataFrame({"value": [1, 2, 3, None]}, index=[8, 4, 6, 2])
+	parameters = {
+		"column": "value",
+		"sentencia1": "value >= 2",
+		"sentencia2": "value <= 2",
+	}
+
+	result = execute(operation, frame, **parameters)
+
+	assert result["value"].tolist() == expected
+	assert result.index.tolist() == [8, 4, 6, 2]
+	assert frame["value"].iloc[:3].tolist() == [1, 2, 3]
+	assert pd.isna(frame["value"].iloc[3])
+
+
+def test_logical_conditions_support_named_output_and_validate_statements() -> None:
+	frame = pd.DataFrame({"value": ["West", "East"]})
+	result = execute(
+		"case", frame, column="value", sentencia1='value == "West"',
+		reemplazar_campo=False, nombre_nueva_columna="is_west",
+	)
+	assert result["is_west"].tolist() == [True, False]
+	assert result["value"].tolist() == ["West", "East"]
+
+	for parameters in (
+		{"column": "value", "sentencia1": "other == 1"},
+		{"column": "value", "sentencia1": "value == __import__('os')"},
+		{"column": "value", "sentencia1": "value == 1", "sentencia2": None,
+		 "reemplazar_campo": False},
+		{"column": "value", "sentencia1": "value == 1", "reemplazar_campo": "false"},
+	):
+		with pytest.raises(ValueError):
+			execute("case", frame, **parameters)
+	with pytest.raises(ValueError, match="requires sentencia2"):
+		execute("and", frame, column="value", sentencia1="value == 1")
+
+
+@pytest.mark.parametrize(
 	"unit, expected",
 	[("days", [1.5, -1.5]), ("months", [0, 0]), ("years", [0, 0])],
 )

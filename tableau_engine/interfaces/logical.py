@@ -12,7 +12,17 @@ from tableau_engine.interfaces.inputs import require_inputs
 class LogicalInterface:
 	"""Route logical operations."""
 
-	_operations = {"coalesce": LogicalProcessor.coalesce, "ifnull": LogicalProcessor.coalesce, "conditional_map": LogicalProcessor.conditional_map}
+	_operations = {
+		"coalesce": LogicalProcessor.coalesce,
+		"ifnull": LogicalProcessor.coalesce,
+		"conditional_map": LogicalProcessor.conditional_map,
+		"and": LogicalProcessor.and_,
+		"case": LogicalProcessor.case,
+		"if": LogicalProcessor.if_,
+		"elseif": LogicalProcessor.elseif,
+		"or": LogicalProcessor.or_,
+		"not": LogicalProcessor.not_,
+	}
 
 	@staticmethod
 	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
