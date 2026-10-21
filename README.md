@@ -263,14 +263,16 @@ Además de los controles de salida, aceptan:
   operadores que `filter`. Desde Python también acepta una función vectorizada,
   por ejemplo `lambda series: series.gt(100)`, que debe devolver una Series booleana
   con el mismo índice. Las condiciones nulas seleccionan `false_value`.
-- Las operaciones lógicas aceptan condiciones como `edad >= 18` o
+- Las operaciones lógicas aceptan dos condiciones como `edad >= 18` o
   `region == "West"` usando `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains` e
-  `isnull`. No ejecutan código. `and` y `or` combinan ambas sentencias; `not`
-  niega la primera; `if` y `case` devuelven la primera condición como booleano;
-  `elseif` devuelve la segunda condición como booleano. Los valores nulos no
-  satisfacen comparaciones y producen `False` en resultados lógicos. Para
-  reemplazar la columna fuente, `reemplazar_campo=true`; para crear una columna,
-  usa `reemplazar_campo=false` y proporciona `nombre_nueva_columna`.
+  `isnull`. No ejecutan código. Primero evalúan cada sentencia como una máscara
+  booleana y luego aplican la operación: `and`/`if` requieren ambas verdaderas;
+  `or`/`case` son verdaderas si cualquiera lo es; `elseif` conserva el resultado
+  verdadero de la primera condición y, si es falsa, usa la segunda. `not` niega
+  la primera sentencia. Los valores nulos no satisfacen comparaciones y producen
+  `False` en resultados lógicos. Para reemplazar la columna fuente,
+  `reemplazar_campo=true`; para crear una columna, usa `reemplazar_campo=false`
+  y proporciona `nombre_nueva_columna`.
 
 Ejemplo de parámetros de un nodo:
 

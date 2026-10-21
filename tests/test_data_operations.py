@@ -152,9 +152,9 @@ def test_null_handling_and_vectorized_condition_callable() -> None:
 		("and", [False, True, False, False]),
 		("or", [True, True, True, False]),
 		("not", [True, False, False, False]),
-		("if", [False, True, True, False]),
-		("case", [False, True, True, False]),
-		("elseif", [True, True, False, False]),
+		("if", [False, True, False, False]),
+		("case", [True, True, True, False]),
+		("elseif", [True, True, True, False]),
 	],
 )
 def test_logical_conditions_create_boolean_results(operation, expected) -> None:
@@ -177,17 +177,19 @@ def test_logical_conditions_support_named_output_and_validate_statements() -> No
 	frame = pd.DataFrame({"value": ["West", "East"]})
 	result = execute(
 		"case", frame, column="value", sentencia1='value == "West"',
+		sentencia2='value == "Never"',
 		reemplazar_campo=False, nombre_nueva_columna="is_west",
 	)
 	assert result["is_west"].tolist() == [True, False]
 	assert result["value"].tolist() == ["West", "East"]
 
 	for parameters in (
-		{"column": "value", "sentencia1": "other == 1"},
-		{"column": "value", "sentencia1": "value == __import__('os')"},
+		{"column": "value", "sentencia1": "other == 1", "sentencia2": "value == 2"},
+		{"column": "value", "sentencia1": "value == __import__('os')", "sentencia2": "value == 2"},
 		{"column": "value", "sentencia1": "value == 1", "sentencia2": None,
 		 "reemplazar_campo": False},
-		{"column": "value", "sentencia1": "value == 1", "reemplazar_campo": "false"},
+		{"column": "value", "sentencia1": "value == 1", "sentencia2": "value == 2",
+		 "reemplazar_campo": "false"},
 	):
 		with pytest.raises(ValueError):
 			execute("case", frame, **parameters)

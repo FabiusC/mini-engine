@@ -1,8 +1,8 @@
 """Null handling and vectorized conditional transformations."""
 
-import ast
 from collections.abc import Callable, Mapping
 import json
+import operator
 import re
 
 import pandas as pd
@@ -45,27 +45,33 @@ class LogicalProcessor:
 			try:
 				value = json.loads(raw_value)
 			except json.JSONDecodeError:
-				try:
-					value = ast.literal_eval(raw_value)
-				except (SyntaxError, ValueError):
-					if re.fullmatch(r"[\w .-]+", raw_value) is None:
-						raise ValueError("Condition value must be a literal, not an expression")
-					value = raw_value
+				if re.fullmatch(r"[\w .-]+", raw_value) is None:
+					raise ValueError("Condition value must be a literal, not an expression")
+				value = raw_value
 			if not isinstance(value, (str, int, float, bool, type(None))):
 				raise ValueError("Condition value must be a scalar literal")
-		return RowProcessor.condition_mask(df[column], operator, value), operator
+			return RowProcessor.condition_mask(df[column], operator, value), operator
 
 	@staticmethod
-	def _logical_result(
-		df: pd.DataFrame,
-		operation: str,
-		column: str,
-		sentencia1: str,
+	def logical(
+			df: pd.DataFrame,
+			operation: str,
+			column: str,
+			sentencia1: str,
 		sentencia2: str | None = None,
 		reemplazar_campo: bool = True,
 		nombre_nueva_columna: str | None = None,
 	) -> pd.DataFrame:
 		"""Evaluate a logical operation and assign its boolean result."""
+		operators = {
+			"and": operator.and_,
+			"if": operator.and_,
+			"or": operator.or_,
+			"case": operator.or_,
+			"elseif": operator.or_,
+		}
+		if operation not in (*operators, "not"):
+			raise ValueError(f"Unsupported logical operation: {operation!r}")
 		if not isinstance(reemplazar_campo, bool):
 			raise ValueError("reemplazar_campo must be a boolean")
 		if reemplazar_campo:
@@ -74,33 +80,17 @@ class LogicalProcessor:
 		elif not isinstance(nombre_nueva_columna, str) or not nombre_nueva_columna:
 			raise ValueError("nombre_nueva_columna is required when reemplazar_campo is false")
 
-		if operation == "and":
-			if sentencia2 is None:
-				raise ValueError("and requires sentencia2")
-			first_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia1)
-			second_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia2)
-			values = first_mask.fillna(False) & second_mask.fillna(False)
-		elif operation == "or":
-			if sentencia2 is None:
-				raise ValueError("or requires sentencia2")
-			first_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia1)
-			second_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia2)
-			values = first_mask.fillna(False) | second_mask.fillna(False)
-		elif operation == "not":
-			first_mask, first_operator = LogicalProcessor._parse_condition(df, column, sentencia1)
-			first_mask = first_mask.fillna(False)
+		first_mask, first_operator = LogicalProcessor._parse_condition(df, column, sentencia1)
+		first_mask = first_mask.fillna(False)
+		if operation == "not":
 			values = ~first_mask
 			if first_operator != "isnull":
 				values &= df[column].notna()
-		elif operation == "elseif":
-			if sentencia2 is None:
-				raise ValueError("elseif requires sentencia2")
-			values, _ = LogicalProcessor._parse_condition(df, column, sentencia2)
-			values = values.fillna(False)
 		else:
-			first_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia1)
-			first_mask = first_mask.fillna(False)
-			values = first_mask
+			if sentencia2 is None:
+				raise ValueError(f"{operation} requires sentencia2")
+			second_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia2)
+			values = operators[operation](first_mask, second_mask.fillna(False))
 
 		return StructuralProcessor.assign_result(
 			df,
@@ -108,60 +98,6 @@ class LogicalProcessor:
 			values.astype(bool),
 			create_new_column=not reemplazar_campo,
 			new_column_name=nombre_nueva_columna if not reemplazar_campo else None,
-		)
-
-	@staticmethod
-	def and_(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "and", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
-		)
-
-	@staticmethod
-	def case(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "case", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
-		)
-
-	@staticmethod
-	def if_(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "if", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
-		)
-
-	@staticmethod
-	def elseif(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "elseif", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
-		)
-
-	@staticmethod
-	def or_(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "or", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
-		)
-
-	@staticmethod
-	def not_(
-		df: pd.DataFrame, column: str, sentencia1: str, sentencia2: str | None = None,
-		reemplazar_campo: bool = True, nombre_nueva_columna: str | None = None,
-	) -> pd.DataFrame:
-		return LogicalProcessor._logical_result(
-			df, "not", column, sentencia1, sentencia2, reemplazar_campo, nombre_nueva_columna,
 		)
 
 	@staticmethod

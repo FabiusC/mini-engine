@@ -1,6 +1,7 @@
 """Facade for null handling and conditional transformations."""
 
 from collections.abc import Sequence
+from functools import partial
 from typing import Any
 
 import pandas as pd
@@ -16,12 +17,12 @@ class LogicalInterface:
 		"coalesce": LogicalProcessor.coalesce,
 		"ifnull": LogicalProcessor.coalesce,
 		"conditional_map": LogicalProcessor.conditional_map,
-		"and": LogicalProcessor.and_,
-		"case": LogicalProcessor.case,
-		"if": LogicalProcessor.if_,
-		"elseif": LogicalProcessor.elseif,
-		"or": LogicalProcessor.or_,
-		"not": LogicalProcessor.not_,
+		"and": partial(LogicalProcessor.logical, operation="and"),
+		"case": partial(LogicalProcessor.logical, operation="case"),
+		"if": partial(LogicalProcessor.logical, operation="if"),
+		"elseif": partial(LogicalProcessor.logical, operation="elseif"),
+		"or": partial(LogicalProcessor.logical, operation="or"),
+		"not": partial(LogicalProcessor.logical, operation="not"),
 	}
 
 	@staticmethod
