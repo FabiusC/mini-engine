@@ -53,13 +53,23 @@ def run_pipeline(
 		result = results[node_id]
 		print(f"{node_id}: {len(result)} rows, {len(result.columns)} columns")
 
-def main(build_pipeline_clean: bool = True, pipeline_file: str = "pipeline.json") -> None:
+def main(
+	build_pipeline_clean: bool = True,
+	pipeline_file: str = "pipeline.json",
+	datasources: Mapping[str, pd.DataFrame] | None = None,
+	parameters: Mapping[str, Mapping[str, Any]] | None = None,
+) -> None:
 	"""Optionally build pipeline_clean, then execute the selected DAG file."""
 	project_root = Path(__file__).resolve().parent
 	dag_directory = project_root / "dag"
 	if build_pipeline_clean:
 		export_clean_pipeline(dag_directory)
-	run_pipeline(project_root, dag_directory / pipeline_file)
+	run_pipeline(
+		project_root,
+		dag_directory / pipeline_file,
+		datasources=datasources,
+		parameters=parameters,
+	)
 
 
 if __name__ == "__main__":

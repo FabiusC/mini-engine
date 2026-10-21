@@ -16,6 +16,20 @@ from tableau_engine.core.pipeline_runner import PipelineRunner
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _external_source_fixture() -> pd.DataFrame:
+	"""Build a third-source fixture with keys shared by the local CSVs."""
+	left = pd.read_csv(ROOT / "data/orders_south_2018.csv", encoding="latin1")
+	right = pd.read_csv(ROOT / "data/Orders_Central.csv", encoding="latin1")
+	customer_ids = (
+		left.merge(right, on="Customer ID")["Customer ID"]
+		.drop_duplicates()
+		.head(3)
+		.tolist()
+	)
+	assert len(customer_ids) == 3
+	return pd.DataFrame({"Customer ID": customer_ids, "Profit": [101, 50, 300]})
+
+
 def _read_operation_responses() -> dict[str, list[dict[str, object]]]:
 	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
 	operation_ids = {
@@ -48,25 +62,51 @@ def test_merge_snapshots_has_the_local_pipeline_schema() -> None:
 			for port in nodes["data"][0]["output_ports"]
 		],
 		"operation": {"id": "a41e3632-2549-49ea-b252-3b9e97b7b759", "name": "inner_join"},
-		"parameters": {},
+		"parameters": {"left_on": "Customer ID", "right_on": "Customer ID"},
 	}
 	assert set(clean["edges"][0]) == {
 		"id", "source_node_id", "target_node_id",
 		"source_output_port_id", "target_input_port_id",
 	}
-	runner = PipelineRunner(clean)
-	assert len(runner.datasource_port_ids) == 3
-	# The real snapshots have no source nodes or parameters; supply them explicitly.
-	datasources = {port: pd.DataFrame({"id": [1, 2, 3]}) for port in runner.datasource_port_ids}
-	parameters = {
-		node["id"]: {"limit": 2} if node["operation"]["name"] == "limit"
-		else {"column": "id", "operator": ">", "value": 1}
-		for node in clean["nodes"] if node["operation"]["name"] in ("limit", "filter")
-	}
-	results = runner.run(datasources, parameters)
-	assert sorted(results[runner.output_node_ids[0]]["id"].tolist()) == [1, 2, 3]
-	with pytest.raises(ValueError, match="Missing datasource"):
+	runner = PipelineRunner(clean, base_dir=ROOT)
+	assert runner.datasource_port_ids == ("e62d5b6c-a237-452d-9192-dd2c39535f77",)
+	datasource = _external_source_fixture()
+	datasources = {runner.datasource_port_ids[0]: datasource}
+	results = runner.run(datasources)
+	assert set(results[runner.output_node_ids[0]]["Customer ID"]) == set(datasource["Customer ID"])
+	with pytest.raises(ValueError, match="Missing datasource.*provide it in datasources"):
 		runner.run()
+
+
+def test_current_snapshot_parameters_are_loaded_and_execute_with_external_data() -> None:
+	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
+	edges = json.loads((ROOT / "dag/edges.json").read_text(encoding="utf-8"))
+	clean = merge_pipeline_clean(edges, nodes, _read_operation_responses())
+	parameters = {node["id"]: node["parameters"] for node in clean["nodes"]}
+
+	assert parameters["b6c84e8c-1115-45c4-a561-44acff99e138"] == {
+		"left_on": "Customer ID", "right_on": "Customer ID",
+	}
+	assert parameters["5bf00f4b-a830-4b0f-9211-533488c671c2"] == {
+		"left_on": "Customer ID", "right_on": "Customer ID",
+	}
+	assert parameters["8d2a0a01-39e2-48bb-baa1-c446baac2a03"] == {"limit": 100}
+	assert parameters["bee978e7-0fc4-491b-8ec2-07a95b3937e5"] == {
+		"column": "Profit", "operator": ">", "value": 100,
+	}
+	assert parameters["504433cd-7ea1-4644-9ade-c60b590b473c"] == {
+		"left_on": "Customer ID", "right_on": "Customer ID",
+	}
+
+	runner = PipelineRunner(clean, base_dir=ROOT)
+	assert runner.datasource_port_ids == ("e62d5b6c-a237-452d-9192-dd2c39535f77",)
+	datasource = _external_source_fixture()
+	results = runner.run({port: datasource for port in runner.datasource_port_ids})
+	filtered = results["bee978e7-0fc4-491b-8ec2-07a95b3937e5"]
+	assert set(filtered["Customer ID"]) == {
+		datasource["Customer ID"].iloc[0], datasource["Customer ID"].iloc[2],
+	}
+	assert (filtered["Profit"] > 100).all()
 
 
 def _node(id: str = "source") -> dict:
@@ -141,7 +181,7 @@ def test_export_overwrites_real_snapshots_deterministically(tmp_path: Path) -> N
 	path.write_text("stale content", encoding="utf-8")
 	export_clean_pipeline(tmp_path)
 	first = path.read_text(encoding="utf-8")
-	assert len(json.loads(first)["nodes"]) == 5
+	assert len(json.loads(first)["nodes"]) == 7
 	export_clean_pipeline(tmp_path)
 	assert path.read_text(encoding="utf-8") == first
 

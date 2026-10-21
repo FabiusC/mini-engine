@@ -35,7 +35,10 @@ class PipelineRunner:
 				continue
 			frame = datasources.get(port["id"])
 			if frame is None:
-				raise ValueError(f"Missing datasource for input port {port['id']!r}")
+				raise ValueError(
+					f"Missing datasource for input port {port['id']!r} "
+					f"on node {node['id']!r}; provide it in datasources[{port['id']!r}]"
+				)
 			frames.append(frame)
 		return frames
 

@@ -82,6 +82,22 @@
       "source_output_port_id": "31988bc3-002d-4f6d-9a30-c84ea67a9a5e",
       "target_input_port_id": "55bbc1fd-55ab-4f27-86ba-0192358b85fd",
       "description": ""
+    },
+    {
+      "id": "local_south_to_inner_join",
+      "is_deleted": false,
+      "source_node_id": "local_read_south",
+      "target_node_id": "b6c84e8c-1115-45c4-a561-44acff99e138",
+      "source_output_port_id": "local_read_south_out",
+      "target_input_port_id": "d177055b-30e4-4755-aad0-1c278a2bc4be"
+    },
+    {
+      "id": "local_central_to_inner_join",
+      "is_deleted": false,
+      "source_node_id": "local_read_central",
+      "target_node_id": "b6c84e8c-1115-45c4-a561-44acff99e138",
+      "source_output_port_id": "local_read_central_out",
+      "target_input_port_id": "445ba155-5458-4f8a-8e60-511308d77303"
     }
   ]
 }

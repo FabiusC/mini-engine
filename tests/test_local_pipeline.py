@@ -22,12 +22,32 @@ def test_main_can_skip_building_pipeline_clean(monkeypatch, pipeline_file) -> No
 		"export_clean_pipeline",
 		lambda _: (_ for _ in ()).throw(AssertionError("unexpected DAG build")),
 	)
-	monkeypatch.setattr(app_main, "run_pipeline", lambda *args: run_calls.append(args))
+	monkeypatch.setattr(app_main, "run_pipeline", lambda *args, **kwargs: run_calls.append((args, kwargs)))
 
 	app_main.main(build_pipeline_clean=False, pipeline_file=pipeline_file)
 
 	assert len(run_calls) == 1
-	assert run_calls[0][1].name == pipeline_file
+	assert run_calls[0][0][1].name == pipeline_file
+
+
+def test_main_passes_external_inputs_and_runtime_parameters(monkeypatch) -> None:
+	datasources = {"external_input": pd.DataFrame({"id": [1]})}
+	parameters = {"join": {"left_on": "id", "right_on": "id"}}
+	run_calls = []
+	monkeypatch.setattr(app_main, "export_clean_pipeline", lambda _: None)
+	monkeypatch.setattr(
+		app_main, "run_pipeline", lambda *args, **kwargs: run_calls.append((args, kwargs))
+	)
+
+	app_main.main(
+		build_pipeline_clean=False,
+		pipeline_file="pipeline_clean.json",
+		datasources=datasources,
+		parameters=parameters,
+	)
+
+	assert run_calls[0][0][1].name == "pipeline_clean.json"
+	assert run_calls[0][1] == {"datasources": datasources, "parameters": parameters}
 
 
 def test_local_pipeline_runs_structural_operations_and_overwrites_output(tmp_path: Path) -> None:

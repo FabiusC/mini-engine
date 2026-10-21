@@ -68,7 +68,10 @@
           "description": "Joined dataset"
         }
       ],
-      "parameters": []
+      "parameters": [
+        {"name": "left_on", "value": "Customer ID"},
+        {"name": "right_on", "value": "Customer ID"}
+      ]
     },
     {
       "id": "b6c84e8c-1115-45c4-a561-44acff99e138",
@@ -135,7 +138,10 @@
           "description": "Joined dataset"
         }
       ],
-      "parameters": []
+      "parameters": [
+        {"name": "left_on", "value": "Customer ID"},
+        {"name": "right_on", "value": "Customer ID"}
+      ]
     },
     {
       "id": "8d2a0a01-39e2-48bb-baa1-c446baac2a03",
@@ -187,7 +193,9 @@
           "description": "Transformed dataset"
         }
       ],
-      "parameters": []
+      "parameters": [
+        {"name": "limit", "value": 100}
+      ]
     },
     {
       "id": "bee978e7-0fc4-491b-8ec2-07a95b3937e5",
@@ -239,7 +247,11 @@
           "description": "Transformed dataset"
         }
       ],
-      "parameters": []
+      "parameters": [
+        {"name": "column", "value": "Profit"},
+        {"name": "operator", "value": ">"},
+        {"name": "value", "value": 100}
+      ]
     },
     {
       "id": "504433cd-7ea1-4644-9ade-c60b590b473c",
@@ -306,7 +318,38 @@
           "description": "Joined dataset"
         }
       ],
-      "parameters": []
+      "parameters": [
+        {"name": "left_on", "value": "Customer ID"},
+        {"name": "right_on", "value": "Customer ID"}
+      ]
+    },
+    {
+      "id": "local_read_south",
+      "is_deleted": false,
+      "operation_id": "local_read_csv",
+      "connector_id": null,
+      "name": "read_orders_south",
+      "input_ports": [],
+      "output_ports": [
+        {"id": "local_read_south_out", "ordinal": 0, "is_deleted": false}
+      ],
+      "parameters": [
+        {"name": "filepath", "value": "data/orders_south_2018.csv"}
+      ]
+    },
+    {
+      "id": "local_read_central",
+      "is_deleted": false,
+      "operation_id": "local_read_csv",
+      "connector_id": null,
+      "name": "read_orders_central",
+      "input_ports": [],
+      "output_ports": [
+        {"id": "local_read_central_out", "ordinal": 0, "is_deleted": false}
+      ],
+      "parameters": [
+        {"name": "filepath", "value": "data/Orders_Central.csv"}
+      ]
     }
   ]
 }
