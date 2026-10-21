@@ -36,31 +36,14 @@ Esto genera el archivo antes de leerlo. Para leer uno ya generado, usa
 `main(build_pipeline_clean=False, pipeline_file="pipeline_clean.json")`.
 
 Los snapshots se completaron con dos nodos locales `read_csv` que leen
-`data/orders_south_2018.csv` y `data/Orders_Central.csv`. El único puerto externo
-restante es el segundo input del join `name_1` (`e62d5b6c-a237-452d-9192-dd2c39535f77`).
-Los parámetros de los nodos están en `dag/nodes.json` y se copian al pipeline limpio:
+`data/orders_south_2018.csv` y `data/Orders_Central.csv`. El nodo de
+`Orders_Central.csv` alimenta tanto el primer join como el segundo join (`name_1`);
+por tanto, el DAG no tiene puertos externos desconectados. Los parámetros de los
+nodos están en `dag/nodes.json` y se copian al pipeline limpio:
 los tres joins usan `Customer ID`, el filtro usa `Profit > 100` y el límite es 100.
-El DataFrame de ese puerto externo debe proporcionarse mediante
-`PipelineRunner.run(datasources=...)` o `main(..., datasources=...)`. Los parámetros
-almacenados pueden sobreescribirse con `parameters=...` en el runner o en `main`.
-
-Para ejecutar el DAG generado con una fuente externa:
-
-```python
-import pandas as pd
-
-from main import main
-
-main(
-    pipeline_file="pipeline_clean.json",
-    datasources={
-        "e62d5b6c-a237-452d-9192-dd2c39535f77": pd.read_csv("data/third.csv"),
-    },
-)
-```
-
-El CSV externo debe contener `Customer ID` y `Profit`. El mensaje de error del
-runner indica el ID del puerto y nodo si falta ese DataFrame.
+Así, `python main.py` puede ejecutar `pipeline_clean.json` sin pasar `datasources`.
+Los parámetros almacenados pueden sobreescribirse con `parameters=...` en el runner
+o en `main` si se necesita otro comportamiento.
 
 ## Ejecutar el pipeline local
 

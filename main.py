@@ -55,7 +55,7 @@ def run_pipeline(
 
 def main(
 	build_pipeline_clean: bool = True,
-	pipeline_file: str = "pipeline.json",
+	pipeline_file: str = "pipeline_clean.json",
 	datasources: Mapping[str, pd.DataFrame] | None = None,
 	parameters: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> None:

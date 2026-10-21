@@ -16,20 +16,6 @@ from tableau_engine.core.pipeline_runner import PipelineRunner
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _external_source_fixture() -> pd.DataFrame:
-	"""Build a third-source fixture with keys shared by the local CSVs."""
-	left = pd.read_csv(ROOT / "data/orders_south_2018.csv", encoding="latin1")
-	right = pd.read_csv(ROOT / "data/Orders_Central.csv", encoding="latin1")
-	customer_ids = (
-		left.merge(right, on="Customer ID")["Customer ID"]
-		.drop_duplicates()
-		.head(3)
-		.tolist()
-	)
-	assert len(customer_ids) == 3
-	return pd.DataFrame({"Customer ID": customer_ids, "Profit": [101, 50, 300]})
-
-
 def _read_operation_responses() -> dict[str, list[dict[str, object]]]:
 	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
 	operation_ids = {
@@ -69,16 +55,12 @@ def test_merge_snapshots_has_the_local_pipeline_schema() -> None:
 		"source_output_port_id", "target_input_port_id",
 	}
 	runner = PipelineRunner(clean, base_dir=ROOT)
-	assert runner.datasource_port_ids == ("e62d5b6c-a237-452d-9192-dd2c39535f77",)
-	datasource = _external_source_fixture()
-	datasources = {runner.datasource_port_ids[0]: datasource}
-	results = runner.run(datasources)
-	assert set(results[runner.output_node_ids[0]]["Customer ID"]) == set(datasource["Customer ID"])
-	with pytest.raises(ValueError, match="Missing datasource.*provide it in datasources"):
-		runner.run()
+	assert runner.datasource_port_ids == ()
+	results = runner.run()
+	assert not results[runner.output_node_ids[0]].empty
 
 
-def test_current_snapshot_parameters_are_loaded_and_execute_with_external_data() -> None:
+def test_current_snapshot_parameters_are_loaded_and_execute_without_external_data() -> None:
 	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
 	edges = json.loads((ROOT / "dag/edges.json").read_text(encoding="utf-8"))
 	clean = merge_pipeline_clean(edges, nodes, _read_operation_responses())
@@ -99,13 +81,10 @@ def test_current_snapshot_parameters_are_loaded_and_execute_with_external_data()
 	}
 
 	runner = PipelineRunner(clean, base_dir=ROOT)
-	assert runner.datasource_port_ids == ("e62d5b6c-a237-452d-9192-dd2c39535f77",)
-	datasource = _external_source_fixture()
-	results = runner.run({port: datasource for port in runner.datasource_port_ids})
+	assert runner.datasource_port_ids == ()
+	results = runner.run()
 	filtered = results["bee978e7-0fc4-491b-8ec2-07a95b3937e5"]
-	assert set(filtered["Customer ID"]) == {
-		datasource["Customer ID"].iloc[0], datasource["Customer ID"].iloc[2],
-	}
+	assert not filtered.empty
 	assert (filtered["Profit"] > 100).all()
 
 

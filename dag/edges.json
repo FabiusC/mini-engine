@@ -98,6 +98,14 @@
       "target_node_id": "b6c84e8c-1115-45c4-a561-44acff99e138",
       "source_output_port_id": "local_read_central_out",
       "target_input_port_id": "445ba155-5458-4f8a-8e60-511308d77303"
+    },
+    {
+      "id": "local_central_to_second_inner_join",
+      "is_deleted": false,
+      "source_node_id": "local_read_central",
+      "target_node_id": "5bf00f4b-a830-4b0f-9211-533488c671c2",
+      "source_output_port_id": "local_read_central_out",
+      "target_input_port_id": "e62d5b6c-a237-452d-9192-dd2c39535f77"
     }
   ]
 }
