@@ -1,6 +1,7 @@
 """Single entry point for the pandas operation processors."""
 
 from tableau_engine.functions.datetime import DateTimeProcessor
+from tableau_engine.functions.conversion import ConversionProcessor
 from tableau_engine.functions.io import IOProcessor
 from tableau_engine.functions.logical import LogicalProcessor
 from tableau_engine.functions.numeric import NumericProcessor
@@ -19,4 +20,5 @@ class PandasDataProcessor:
 		self.row = RowProcessor()
 		self.io = IOProcessor()
 		self.datetime = DateTimeProcessor()
+		self.conversion = ConversionProcessor()
 		self.logical = LogicalProcessor()

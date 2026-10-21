@@ -1,12 +1,14 @@
 """Check the public processor API and facade bindings."""
 
 import inspect
+from functools import partial
 
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
 from tableau_engine import PandasDataProcessor
+from tableau_engine.functions.conversion import ConversionProcessor
 from tableau_engine.functions.datetime import DateTimeProcessor
 from tableau_engine.functions.io import IOProcessor
 from tableau_engine.functions.logical import LogicalProcessor
@@ -15,6 +17,7 @@ from tableau_engine.functions.row import RowProcessor
 from tableau_engine.functions.structural import StructuralProcessor
 from tableau_engine.functions.text import TextProcessor
 from tableau_engine.interfaces.datetime import DateTimeInterface
+from tableau_engine.interfaces.conversion import ConversionInterface
 from tableau_engine.interfaces.io import IOInterface
 from tableau_engine.interfaces.logical import LogicalInterface
 from tableau_engine.interfaces.numeric import NumericInterface
@@ -26,6 +29,7 @@ from tableau_engine.interfaces.text import TextInterface
 @pytest.mark.parametrize("processor", [
 	NumericProcessor, TextProcessor, StructuralProcessor, RowProcessor,
 	IOProcessor, DateTimeProcessor, LogicalProcessor,
+	ConversionProcessor,
 ])
 def test_operations_are_contained_in_processor_as_static_methods(processor) -> None:
 	module = inspect.getmodule(processor)
@@ -47,12 +51,14 @@ def test_operations_are_contained_in_processor_as_static_methods(processor) -> N
 	(RowInterface, RowProcessor, "_operations"),
 	(StructuralInterface, StructuralProcessor, "_operations"),
 	(IOInterface, IOProcessor, "_operations"),
+	(ConversionInterface, ConversionProcessor, "_operations"),
 	(DateTimeInterface, DateTimeProcessor, "_operations"),
 	(LogicalInterface, LogicalProcessor, "_operations"),
 ])
 def test_facades_bind_processor_methods(interface, processor, mapping_name) -> None:
 	for function in getattr(interface, mapping_name).values():
-		assert function is getattr(processor, function.__name__)
+		bound_function = function.func if isinstance(function, partial) else function
+		assert bound_function is getattr(processor, bound_function.__name__)
 
 
 def test_processor_calls_support_classes_and_instances_without_shared_state() -> None:
@@ -71,6 +77,7 @@ def test_processor_calls_support_classes_and_instances_without_shared_state() ->
 	("io", IOProcessor),
 	("datetime", DateTimeProcessor),
 	("logical", LogicalProcessor),
+	("conversion", ConversionProcessor),
 ])
 def test_pandas_processor_composes_independent_category_instances(category, processor) -> None:
 	first = PandasDataProcessor()

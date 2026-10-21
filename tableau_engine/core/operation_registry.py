@@ -2,6 +2,7 @@
 
 from tableau_engine.interfaces.io import IOInterface
 from tableau_engine.interfaces.datetime import DateTimeInterface
+from tableau_engine.interfaces.conversion import ConversionInterface
 from tableau_engine.interfaces.logical import LogicalInterface
 from tableau_engine.interfaces.numeric import NumericInterface
 from tableau_engine.interfaces.row import RowInterface
@@ -10,6 +11,7 @@ from tableau_engine.interfaces.text import TextInterface
 
 INTERFACES = (
 	IOInterface,
+	ConversionInterface,
 	DateTimeInterface,
 	LogicalInterface,
 	NumericInterface,

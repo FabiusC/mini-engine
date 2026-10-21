@@ -112,6 +112,7 @@ por categoría:
 | `number` | `NumericProcessor` |
 | `row` | `RowProcessor` |
 | `io` | `IOProcessor` |
+| `conversion` | `ConversionProcessor` |
 | `datetime` | `DateTimeProcessor` |
 | `logical` | `LogicalProcessor` |
 
@@ -237,6 +238,10 @@ Además de los controles de salida, aceptan:
 | `date_add`, `date_sub` | `column`, `unit`: `days`, `months`, `years`; `amount`: entero |
 | `date_diff` | `start_column`, `end_column`, `unit="days"`: `days`, `months`, `years` |
 | `extract_date_part` | `column`, `part`: `year`, `month`, `day`, `weekday` |
+| `date`, `datetime`, `float`, `int`, `str` | `column`, `replace=true`, `new_column_name` cuando `replace=false` |
+| `make_date` | `column_day`, `column_month`, `column_year`, `replace=false`, `new_column_name="date"` |
+| `make_time` | `column_hour`, `column_minute`, `column_second`, `new_column_name="time"` |
+| `make_date_time` | `column_date`, `column_hour`, `new_column_name="datetime"` |
 | `coalesce`, `ifnull` | `column`, `default_value` |
 | `conditional_map` | `column`, `condition_func`, `true_value`, `false_value` |
 | `and`, `or` | `column`, `sentencia1`, `sentencia2`, `reemplazar_campo`, `nombre_nueva_columna` |
@@ -257,6 +262,13 @@ Además de los controles de salida, aceptan:
   `date_diff` calcula fin menos inicio: días transcurridos fraccionarios o meses/años
   completos con signo, comparando día y hora del aniversario (31 de enero a 29 de
   febrero no completa un mes). Propaga `NaT`. `weekday` usa lunes=0 y domingo=6.
+- Las conversiones están disponibles en `PandasDataProcessor.conversion` y en los
+  pipelines. `date` normaliza la hora a medianoche; `datetime` conserva fecha y hora.
+  `float`, `int` y `str` convierten con pandas y propagan errores de datos inválidos;
+  `int` usa el dtype nullable `Int64`. `make_date` ajusta los días que exceden la
+  duración del mes (por ejemplo, 31 de abril a 30 de abril), pero rechaza meses
+  fuera de 1–12. `make_time` valida horas, minutos y segundos y devuelve valores
+  `time`; `make_date_time` combina una fecha con una columna de hora.
 - `coalesce`/`ifnull` reemplazan nulos y la cadena vacía, no espacios, ceros o `False`.
   El valor predeterminado debe ser compatible con el dtype de la columna.
 - `conditional_map` acepta en JSON `{"operator": ">", "value": 100}` con los mismos
