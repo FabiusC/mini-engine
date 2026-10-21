@@ -13,7 +13,7 @@ from tableau_engine.core.pipeline_runner import PipelineRunner
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("pipeline_file", ["pipeline.json", "pipeline_clean.json"])
+@pytest.mark.parametrize("pipeline_file", ["pipeline.json", "pipeline_test.json"])
 def test_main_can_skip_building_pipeline_clean(monkeypatch, pipeline_file) -> None:
 	"""Skipping the clean DAG build does not skip local pipeline execution."""
 	run_calls = []
@@ -41,12 +41,12 @@ def test_main_passes_external_inputs_and_runtime_parameters(monkeypatch) -> None
 
 	app_main.main(
 		build_pipeline_clean=False,
-		pipeline_file="pipeline_clean.json",
+		pipeline_file="pipeline_test.json",
 		datasources=datasources,
 		parameters=parameters,
 	)
 
-	assert run_calls[0][0][1].name == "pipeline_clean.json"
+	assert run_calls[0][0][1].name == "pipeline_test.json"
 	assert run_calls[0][1] == {"datasources": datasources, "parameters": parameters}
 
 

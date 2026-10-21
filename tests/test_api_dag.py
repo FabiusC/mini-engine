@@ -60,7 +60,9 @@ def test_merge_snapshots_has_the_local_pipeline_schema() -> None:
 	assert not results[runner.output_node_ids[0]].empty
 
 
-def test_current_snapshot_parameters_are_loaded_and_execute_without_external_data() -> None:
+def test_current_snapshot_parameters_are_loaded_and_execute_without_external_data(
+	tmp_path: Path,
+) -> None:
 	nodes = json.loads((ROOT / "dag/nodes.json").read_text(encoding="utf-8"))
 	edges = json.loads((ROOT / "dag/edges.json").read_text(encoding="utf-8"))
 	clean = merge_pipeline_clean(edges, nodes, _read_operation_responses())
@@ -154,15 +156,39 @@ def test_merge_rejects_dangling_edges_missing_operations_and_duplicate_nodes() -
 
 
 def test_export_overwrites_real_snapshots_deterministically(tmp_path: Path) -> None:
-	for name in ["nodes.json", "edges.json"] + [f"{op['id']}.json" for op in _read_operation_responses()["data"]]:
+	for name in ["nodes.json", "edges.json"] + [
+		f"{op['id']}.json" for op in _read_operation_responses()["data"]
+		if op["id"] != "local_write_csv"
+	]:
 		shutil.copy(ROOT / "dag" / name, tmp_path / name)
 	path = tmp_path / "pipeline_clean.json"
 	path.write_text("stale content", encoding="utf-8")
 	export_clean_pipeline(tmp_path)
 	first = path.read_text(encoding="utf-8")
-	assert len(json.loads(first)["nodes"]) == 7
+	pipeline = json.loads(first)
+	assert len(pipeline["nodes"]) == 7
+	assert len(pipeline["edges"]) == 8
+	output_nodes = [
+		node for node in pipeline["nodes"]
+		if node["operation"]["name"] == "write_csv"
+	]
+	assert output_nodes == []
 	export_clean_pipeline(tmp_path)
 	assert path.read_text(encoding="utf-8") == first
+
+
+def test_run_pipeline_executes_pipeline_test_writer(tmp_path: Path) -> None:
+	pipeline_path = tmp_path / "pipeline_test.json"
+	shutil.copy(ROOT / "dag" / "pipeline_test.json", pipeline_path)
+	output_path = tmp_path / "processed.csv"
+	parameters = {"local_write_clean_output": {"filepath": str(output_path)}}
+
+	run_pipeline(ROOT, pipeline_path, parameters=parameters)
+
+	assert output_path.is_file()
+	result = pd.read_csv(output_path)
+	assert not result.empty
+	assert len(result.columns) == 133
 
 
 def test_generated_pipeline_can_replace_local_pipeline_file(tmp_path: Path, capsys) -> None:

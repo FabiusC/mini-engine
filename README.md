@@ -7,7 +7,7 @@ normalizado en `dag/pipeline_clean.json`, sobrescribiendo el archivo en cada gen
 
 La construcción de `pipeline_clean.json` está activada por defecto. Para omitirla al
 invocar `main.py` desde Python, usa `main(build_pipeline_clean=False)`; el pipeline
-local de `dag/pipeline.json` seguirá ejecutándose.
+de prueba `dag/pipeline_test.json` seguirá ejecutándose.
 
 La salida tiene el mismo formato que `dag/pipeline.json`: listas `nodes` y `edges`,
 sin duplicar los nodos dentro de las aristas. Cada nodo conserva `id`,
@@ -24,24 +24,30 @@ Se omiten nodos, puertos, operaciones y aristas eliminados; también se omiten l
 aristas conectadas a nodos eliminados. Una operación ausente, un ID de nodo
 duplicado o una arista que referencia un nodo desconocido provoca un error.
 
-Para elegir el archivo, sin cambiar el runner:
+`main.py` regenera `dag/pipeline_clean.json` desde las respuestas guardadas en
+`nodes.json`, `edges.json` y los snapshots de operaciones, pero ejecuta
+`dag/pipeline_test.json`. Este último es un pipeline de prueba independiente y
+no se sobrescribe al generar el pipeline limpio. Para elegir el archivo ejecutado:
 
 ```python
 from main import main
 
-main(pipeline_file="pipeline_clean.json")
+main(pipeline_file="pipeline_test.json")
 ```
 
-Esto genera el archivo antes de leerlo. Para leer uno ya generado, usa
-`main(build_pipeline_clean=False, pipeline_file="pipeline_clean.json")`.
+El flujo normal ejecuta `pipeline_test.json`; `pipeline_clean.json` se conserva
+como salida generada para inspección y no se usa para la ejecución de pruebas.
 
 Los snapshots se completaron con dos nodos locales `read_csv` que leen
-`data/orders_south_2018.csv` y `data/Orders_Central.csv`. El nodo de
+`data/orders_south_2018.csv` y `data/Orders_Central.csv`. `pipeline_clean.json`
+refleja solamente los nodos y conexiones presentes en esos snapshots; no se le
+inyecta un nodo de escritura durante la generación. El pipeline de prueba
+`pipeline_test.json` incluye su propio `write_csv`, que persiste el resultado en
+`output/processed_orders.csv`. El nodo de
 `Orders_Central.csv` alimenta tanto el primer join como el segundo join (`name_1`);
 por tanto, el DAG no tiene puertos externos desconectados. Los parámetros de los
 nodos están en `dag/nodes.json` y se copian al pipeline limpio:
 los tres joins usan `Customer ID`, el filtro usa `Profit > 100` y el límite es 100.
-Así, `python main.py` puede ejecutar `pipeline_clean.json` sin pasar `datasources`.
 Los parámetros almacenados pueden sobreescribirse con `parameters=...` en el runner
 o en `main` si se necesita otro comportamiento.
 
