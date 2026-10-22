@@ -29,7 +29,7 @@ def execute(operation: str, *frames: pd.DataFrame, **parameters) -> pd.DataFrame
 		("substring", ["abcde"], {"start": 1, "length": 2}, ["bc"]),
 		("replace", ["a.b"], {"old_text": ".", "new_text": "-"}, ["a-b"]),
 		("split", ["a::b"], {"delimiter": "::", "index": 1}, ["b"]),
-		("concat", ["a"], {"columns": ["value", "other"], "separator": "-"}, ["a-2"]),
+		("concat_column", ["a"], {"columns": ["value", "other"], "separator": "-"}, ["a-2"]),
 		("contains", ["Madrid"], {"search_text": "adr"}, [True]),
 		("starts_with", ["Madrid"], {"search_text": "Mad"}, [True]),
 		("ends_with", ["Madrid"], {"search_text": "rid"}, [True]),
@@ -56,7 +56,7 @@ def test_transformations_support_both_output_modes(
 ) -> None:
 	frame = pd.DataFrame({"value": source, "other": [2]}, index=[7])
 	before = frame.copy(deep=True)
-	arguments = {} if operation in ("arithmetic", "concat") else {"column": "value"}
+	arguments = {} if operation in ("arithmetic", "concat_column") else {"column": "value"}
 	result = execute(
 		operation, frame, **arguments, **parameters, create_new_column=create,
 	)
@@ -87,7 +87,10 @@ def test_text_operations_preserve_nulls(operation) -> None:
 		"transform_left": {"limit": 2},
 		"transform_right": {"limit": 2},
 	}.get(operation, {})
-	result = execute(operation, pd.DataFrame({"v": [None, "abc"]}), column="v", **parameters)
+	result = execute(
+		operation, pd.DataFrame({"v": [None, "abc"]}), column="v",
+		create_new_column=False, **parameters,
+	)
 	if operation in ("contains", "starts_with", "ends_with"):
 		assert result["v"].tolist() == [False, True]
 	else:
@@ -147,10 +150,48 @@ def test_split_expands_without_mutation_or_column_overwrites() -> None:
 	assert pd.isna(result["part_1"].iloc[1])
 	assert result.index.tolist() == [9, 4, 2]
 	assert frame.columns.tolist() == ["v"]
+	default_result = execute("split", frame, column="v", delimiter="|")
+	assert "v_processed_0" in default_result.columns
 	with pytest.raises(ValueError, match="requires create_new_column"):
-		execute("split", frame, column="v", delimiter="|")
+		execute("split", frame, column="v", delimiter="|", create_new_column=False)
 	with pytest.raises(ValueError, match="already exist"):
 		execute("split", result, column="v", delimiter="|", create_new_column=True, new_column_name="part")
+
+
+def test_concat_text_replaces_by_default_and_can_create_a_column() -> None:
+	frame = pd.DataFrame({"v": ["Postal", None]})
+	replaced = execute("concat_text", frame, column_name="v", value="_Code")
+	assert replaced["v"].iloc[0] == "Postal_Code"
+	assert pd.isna(replaced["v"].iloc[1])
+	assert frame["v"].iloc[0] == "Postal"
+
+	created = execute(
+		"concat_text", frame, column_name="v", value="_Code",
+		create_new_column=True, new_column_name="with_suffix",
+	)
+	assert created["with_suffix"].iloc[0] == "Postal_Code"
+	assert created["v"].iloc[0] == "Postal"
+
+
+def test_text_operations_choose_new_column_defaults_by_result_type() -> None:
+	frame = pd.DataFrame({"text": ["Madrid", "other"], "second": ["City", "town"]})
+	for operation, parameters in (
+		("contains", {"search_text": "ad"}),
+		("starts_with", {"search_text": "Ma"}),
+		("ends_with", {"search_text": "rid"}),
+		("length", {}),
+	):
+		result = execute(operation, frame, column="text", **parameters)
+		assert "text_processed" in result.columns
+		assert result["text"].tolist() == ["Madrid", "other"]
+
+	joined = execute("concat_column", frame, columns=["text", "second"])
+	assert "text_processed" in joined.columns
+	assert joined["text_processed"].tolist() == ["MadridCity", "othertown"]
+
+	text = execute("concat_text", frame, column_name="text", value="!")
+	assert text["text"].tolist() == ["Madrid!", "other!"]
+	assert "text_processed" not in text.columns
 
 
 @pytest.mark.parametrize("operator, expected", [("+", [6, 8]), ("-", [2, 4]), ("*", [8, 12]), ("/", [2, 3])])

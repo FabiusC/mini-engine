@@ -76,7 +76,7 @@
         },
         {
             "id": "concat_postal_code",
-            "operation": {"name": "concat"},
+            "operation": {"name": "concat_column"},
             "input_ports": [{"id": "concat_in", "ordinal": 0}],
             "output_ports": [{"id": "concat_out", "ordinal": 0}],
             "parameters": {

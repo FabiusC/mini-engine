@@ -130,8 +130,6 @@ class TextProcessor:
 		values = values.str.slice(0, length)
 		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
-	# TODO Propper
-
 	def replace(
 		self,
 		df: pd.DataFrame, 
@@ -150,7 +148,7 @@ class TextProcessor:
 		column: str, 
 		delimiter: str, 
 		index: int | None = None,
-		create_new_column: bool = False, 
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Select one token, or expand all tokens into new columns."""
@@ -172,15 +170,15 @@ class TextProcessor:
 		parts.columns = names
 		return pd.concat([result, parts], axis=1)
 
-	def concat(
+	def concat_column(
 		self,
 		df: pd.DataFrame, 
 		columns: list[str], 
 		separator: str = "",
-		create_new_column: bool = False, 
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
-		"""Concatenate columns; missing inputs propagate to the result."""
+		"""Concatenate selected columns into a new column by default."""
 		if not columns:
 			raise ValueError("columns must not be empty")
 		values = df[columns[0]].astype("string")
@@ -188,12 +186,28 @@ class TextProcessor:
 			values = values.str.cat(df[column].astype("string"), sep=separator)
 		return StructuralProcessor().assign_result(df, columns[0], values, create_new_column, new_column_name)
 
+	def concat_text(
+		self,
+		df: pd.DataFrame,
+		column_name: str,
+		value: str,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Append literal text to a column, replacing it by default."""
+		if not isinstance(value, str):
+			raise ValueError("value must be a string")
+		values = df[column_name].astype("string") + value
+		return StructuralProcessor().assign_result(
+			df, column_name, values, create_new_column, new_column_name,
+		)
+
 	def contains(
 		self,
 		df: pd.DataFrame,
 		column: str,
 		search_text: str,
-		create_new_column: bool = False,
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return whether each non-null value contains the literal search text."""
@@ -211,7 +225,7 @@ class TextProcessor:
 		df: pd.DataFrame,
 		column: str,
 		search_text: str,
-		create_new_column: bool = False,
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return whether each non-null value starts with the literal search text."""
@@ -227,7 +241,7 @@ class TextProcessor:
 		df: pd.DataFrame,
 		column: str,
 		search_text: str,
-		create_new_column: bool = False,
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return whether each non-null value ends with the literal search text."""
@@ -275,7 +289,7 @@ class TextProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		create_new_column: bool = False,
+		create_new_column: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return the character count for each value, preserving nulls."""
