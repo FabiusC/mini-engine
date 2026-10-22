@@ -91,6 +91,12 @@ OPERATION_PROCESSORS: dict[str, Operation] = {
 	"replace": _text.replace,
 	"split": _text.split,
 	"concat": _text.concat,
+	"contains": _text.contains,
+	"starts_with": _text.starts_with,
+	"ends_with": _text.ends_with,
+	"transform_left": _text.transform_left,
+	"transform_right": _text.transform_right,
+	"length": _text.length,
 }
 
 _ZERO_INPUT_OPERATIONS = {"input", "read_csv"}

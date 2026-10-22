@@ -155,16 +155,98 @@ class TextProcessor:
 			values = values.str.cat(df[column].astype("string"), sep=separator)
 		return StructuralProcessor().assign_result(df, columns[0], values, create_new_column, new_column_name)
 
-	# TODO contains
+	def contains(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		search_text: str,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Return whether each non-null value contains the literal search text."""
+		if not isinstance(search_text, str):
+			raise ValueError("search_text must be a string")
+		values = df[column].astype("string").str.contains(
+			search_text, regex=False, na=False,
+		)
+		return StructuralProcessor().assign_result(
+			df, column, values.astype(bool), create_new_column, new_column_name,
+		)
 
-	# TODO starts_with
+	def starts_with(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		search_text: str,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Return whether each non-null value starts with the literal search text."""
+		if not isinstance(search_text, str):
+			raise ValueError("search_text must be a string")
+		values = df[column].astype("string").str.startswith(search_text, na=False)
+		return StructuralProcessor().assign_result(
+			df, column, values.astype(bool), create_new_column, new_column_name,
+		)
 
-	# TODO ends_with
+	def ends_with(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		search_text: str,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Return whether each non-null value ends with the literal search text."""
+		if not isinstance(search_text, str):
+			raise ValueError("search_text must be a string")
+		values = df[column].astype("string").str.endswith(search_text, na=False)
+		return StructuralProcessor().assign_result(
+			df, column, values.astype(bool), create_new_column, new_column_name,
+		)
 
-	# TODO transform_left (Transform the text until it arrives to the limit value)
+	def transform_left(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		limit: int,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Keep up to ``limit`` characters from the beginning of each value."""
+		if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+			raise ValueError("limit must be a nonnegative integer")
+		values = df[column].astype("string").str.slice(0, limit)
+		return StructuralProcessor().assign_result(
+			df, column, values, create_new_column, new_column_name,
+		)
 
-	# TODO transform_right (Transform the text until it arrives to the limit value)
+	def transform_right(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		limit: int,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Keep up to ``limit`` characters from the end of each value."""
+		if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+			raise ValueError("limit must be a nonnegative integer")
+		text = df[column].astype("string")
+		values = text.str.slice(-limit, None) if limit else text.str.slice(0, 0)
+		return StructuralProcessor().assign_result(
+			df, column, values, create_new_column, new_column_name,
+		)
 
-	# TODO Length (Length of the string on each cell on the column selected)
-
-	# TODO 
+	def length(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame:
+		"""Return the character count for each value, preserving nulls."""
+		values = df[column].astype("string").str.len().astype("Int64")
+		return StructuralProcessor().assign_result(
+			df, column, values, create_new_column, new_column_name,
+		)

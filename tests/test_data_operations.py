@@ -28,6 +28,12 @@ def execute(operation: str, *frames: pd.DataFrame, **parameters) -> pd.DataFrame
 		("replace", ["a.b"], {"old_text": ".", "new_text": "-"}, ["a-b"]),
 		("split", ["a::b"], {"delimiter": "::", "index": 1}, ["b"]),
 		("concat", ["a"], {"columns": ["value", "other"], "separator": "-"}, ["a-2"]),
+		("contains", ["Madrid"], {"search_text": "adr"}, [True]),
+		("starts_with", ["Madrid"], {"search_text": "Mad"}, [True]),
+		("ends_with", ["Madrid"], {"search_text": "rid"}, [True]),
+		("transform_left", ["Madrid"], {"limit": 3}, ["Mad"]),
+		("transform_right", ["Madrid"], {"limit": 3}, ["rid"]),
+		("length", ["Madrid"], {}, [6]),
 		("ceiling", [-1.2], {}, [-1]),
 		("floor", [-1.2], {}, [-2]),
 		("round", [1.234], {"decimals": 2}, [1.23]),
@@ -60,19 +66,58 @@ def test_transformations_support_both_output_modes(
 		assert result["value"].tolist() == source
 
 
-@pytest.mark.parametrize("operation", ["lower", "upper", "trim", "ltrim", "rtrim", "substring", "replace", "split"])
+@pytest.mark.parametrize(
+	"operation",
+	[
+		"lower", "upper", "trim", "ltrim", "rtrim", "substring", "replace",
+		"split", "contains", "starts_with", "ends_with", "transform_left",
+		"transform_right", "length",
+	],
+)
 def test_text_operations_preserve_nulls(operation) -> None:
 	parameters = {
 		"substring": {"start": -2, "length": 1},
 		"replace": {"old_text": "a", "new_text": "z"},
 		"split": {"delimiter": "-", "index": 8},
+		"contains": {"search_text": "a"},
+		"starts_with": {"search_text": "a"},
+		"ends_with": {"search_text": "c"},
+		"transform_left": {"limit": 2},
+		"transform_right": {"limit": 2},
 	}.get(operation, {})
 	result = execute(operation, pd.DataFrame({"v": [None, "abc"]}), column="v", **parameters)
-	assert pd.isna(result["v"].iloc[0])
+	if operation in ("contains", "starts_with", "ends_with"):
+		assert result["v"].tolist() == [False, True]
+	else:
+		assert pd.isna(result["v"].iloc[0])
 	if operation == "substring":
 		assert result["v"].iloc[1] == "b"
 	if operation == "split":
 		assert pd.isna(result["v"].iloc[1])
+	if operation == "transform_left":
+		assert result["v"].iloc[1] == "ab"
+	if operation == "transform_right":
+		assert result["v"].iloc[1] == "bc"
+	if operation == "length":
+		assert result["v"].iloc[1] == 3
+
+
+@pytest.mark.parametrize("operation", ["transform_left", "transform_right"])
+@pytest.mark.parametrize("limit", [-1, 1.5, True])
+def test_text_transform_rejects_invalid_limits(operation, limit) -> None:
+	with pytest.raises(ValueError, match="nonnegative integer"):
+		execute(operation, pd.DataFrame({"v": ["abc"]}), column="v", limit=limit)
+
+
+def test_text_search_can_write_boolean_results_to_a_new_column() -> None:
+	frame = pd.DataFrame({"city": ["Madrid", "Barcelona", None]})
+	result = execute(
+		"contains", frame, column="city", search_text="Madrid",
+		create_new_column=True, new_column_name="matches",
+	)
+	assert result["matches"].tolist() == [True, False, False]
+	assert result["city"].iloc[:2].tolist() == ["Madrid", "Barcelona"]
+	assert pd.isna(result["city"].iloc[2])
 
 
 def test_output_name_validation_and_collision_policy() -> None:
