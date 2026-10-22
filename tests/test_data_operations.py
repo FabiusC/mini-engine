@@ -268,6 +268,76 @@ def test_date_diff_counts_complete_calendar_units(unit, expected) -> None:
 	assert result["start"].tolist() == expected
 
 
+@pytest.mark.parametrize(
+	"operation, expected",
+	[
+		("iso_week", 53),
+		("iso_week_day", 5),
+		("iso_year", 2020),
+		("iso_quarter", 4),
+		("day", 1),
+		("month", 1),
+		("quarter", 1),
+		("year", 2021),
+		("week", 4),
+	],
+)
+def test_date_parts_support_iso_year_boundary(operation, expected) -> None:
+	result = execute(operation, pd.DataFrame({"v": ["2021-01-01"]}), column="v")
+	assert result["v"].iloc[0] == expected
+
+
+def test_date_trunc_supports_month_and_preserves_nulls() -> None:
+	frame = pd.DataFrame({"v": ["2024-02-29 12:34:56", None]})
+	result = execute("date_trunc", frame, column="v", part="month", replace=False, new_column_name="truncated")
+	assert result["truncated"].iloc[0] == pd.Timestamp("2024-02-01")
+	assert pd.isna(result["truncated"].iloc[1])
+	assert result["v"].iloc[0] == "2024-02-29 12:34:56"
+
+
+def test_date_parse_coerces_invalid_values_and_can_create_a_column() -> None:
+	frame = pd.DataFrame({"v": ["2024-02-29", "invalid"]})
+	result = execute(
+		"date_parse", frame, column="v", date_format="%Y-%m-%d",
+		replace=False, new_column_name="parsed",
+	)
+	assert result["parsed"].iloc[0] == pd.Timestamp("2024-02-29")
+	assert pd.isna(result["parsed"].iloc[1])
+	assert result["v"].tolist() == ["2024-02-29", "invalid"]
+
+
+def test_date_add_and_diff_support_weeks_quarters_and_interval_aliases() -> None:
+	frame = pd.DataFrame({"start": ["2024-01-01"], "end": ["2024-04-01"]})
+	added = execute("date_add", frame, column="start", part="week", interval=1)
+	assert added["start"].iloc[0] == pd.Timestamp("2024-01-08")
+	diff = execute("date_diff", frame, start_column="start", end_column="end", part="quarter")
+	assert diff["start"].iloc[0] == 1
+
+
+def test_today_and_now_generate_local_system_values() -> None:
+	frame = pd.DataFrame({"v": ["unused", "unused"]})
+	today = execute("today", frame, column="v", replace=False, new_column_name="today")
+	now = execute("now", frame, column="v", replace=False, new_column_name="now")
+	assert today["today"].dt.time.tolist() == [pd.Timestamp.today().normalize().time()] * 2
+	assert (now["now"].dt.normalize() == today["today"]).all()
+
+
+def test_date_name_supports_spanish_month_and_weekday_names() -> None:
+	frame = pd.DataFrame({"v": ["1986-03-25", "not-a-date"]})
+	month_names = execute("date_name", frame, column="v", part="month")
+	weekday_names = execute("date_name", frame, column="v", part="weekday")
+	assert month_names["v"].iloc[0] == "marzo"
+	assert weekday_names["v"].iloc[0] == "martes"
+	assert pd.isna(month_names["v"].iloc[1])
+
+
+def test_date_operation_names_support_table_spellings() -> None:
+	frame = pd.DataFrame({"v": ["2024-01-01"]})
+	assert execute("DateParse", frame, column="v", date_format="%Y-%m-%d")["v"].iloc[0] == pd.Timestamp("2024-01-01")
+	assert execute("Date add", frame, column="v", part="week", interval=1)["v"].iloc[0] == pd.Timestamp("2024-01-08")
+	assert execute("Date name", frame, column="v", part="weekday")["v"].iloc[0] == "lunes"
+
+
 @pytest.mark.parametrize("part, expected", [("year", 2024), ("month", 2), ("day", 29), ("weekday", 3)])
 def test_extract_parts(part, expected) -> None:
 	result = execute("extract_date_part", pd.DataFrame({"v": ["2024-02-29", None]}), column="v", part=part)
@@ -339,7 +409,7 @@ def test_column_management_aliases_and_datetime_type() -> None:
 	[
 		("arithmetic", {"column_a": "v", "operator": "**", "column_b_or_value": 1}),
 		("filter", {"column": "v", "operator": "eval"}),
-		("date_add", {"column": "v", "unit": "hours", "amount": 1}),
+		("date_add", {"column": "v", "unit": "fortnights", "amount": 1}),
 		("date_sub", {"column": "v", "unit": "days", "amount": 1.5}),
 		("date_diff", {"start_column": "v", "end_column": "v", "unit": "unknown"}),
 		("extract_date_part", {"column": "v", "part": "unknown"}),

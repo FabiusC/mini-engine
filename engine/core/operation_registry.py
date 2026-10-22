@@ -40,9 +40,35 @@ OPERATION_PROCESSORS: dict[str, Operation] = {
 	"make_time": _conversion.make_time,
 	"make_date_time": _conversion.make_date_time,
 	"date_parser": _date_time.date_parser,
+	"date_parse": _date_time.date_parse,
+	"dateparse": _date_time.date_parse,
+	"date_trunc": _date_time.date_trunc,
+	"datetrunc": _date_time.date_trunc,
+	"day": _date_time.day,
+	"iso_quarter": _date_time.iso_quarter,
+	"isoquarter": _date_time.iso_quarter,
+	"iso_week": _date_time.iso_week,
+	"isoweek": _date_time.iso_week,
+	"iso_week_day": _date_time.iso_week_day,
+	"isoweekday": _date_time.iso_week_day,
+	"iso_year": _date_time.iso_year,
+	"isoyear": _date_time.iso_year,
+	"now": _date_time.now,
+	"quarter": _date_time.quarter,
+	"today": _date_time.today,
+	"week": _date_time.week,
+	"year": _date_time.year,
 	"date_add": _date_time.date_add,
+	"date add": _date_time.date_add,
+	"dateadd": _date_time.date_add,
 	"date_sub": _date_time.date_sub,
 	"date_diff": _date_time.date_diff,
+	"date diff": _date_time.date_diff,
+	"datediff": _date_time.date_diff,
+	"date_name": _date_time.date_name,
+	"date name": _date_time.date_name,
+	"datename": _date_time.date_name,
+	"month": _date_time.month,
 	"extract_date_part": _date_time.extract_date_part,
 	"coalesce": _logical.coalesce,
 	"ifnull": _logical.coalesce,
@@ -117,7 +143,7 @@ def _require_inputs(operation: str, inputs: Sequence[pd.DataFrame], count: int) 
 def get_operation(operation: str) -> Operation:
 	"""Return the concrete processor method for a pipeline operation name."""
 	try:
-		return OPERATION_PROCESSORS[operation]
+		return OPERATION_PROCESSORS[operation.lower()]
 	except KeyError as error:
 		raise ValueError(f"Unsupported operation {operation!r}") from error
 
@@ -129,6 +155,7 @@ def execute_operation(
 	**overrides: Any,
 ) -> pd.DataFrame:
 	"""Dispatch inputs to the concrete method registered for an operation."""
+	operation = operation.lower()
 	function = get_operation(operation)
 	arguments = dict(parameters or {})
 	arguments.update(overrides)
