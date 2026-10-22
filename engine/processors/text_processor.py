@@ -65,22 +65,30 @@ class TextProcessor:
 
 	def ltrim(
 		self,
-		df: pd.DataFrame, column: str, create_new_column: bool = False,
+		df: pd.DataFrame, 
+		column: str, 
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		return self.trim(df, column, create_new_column, new_column_name, side="left")
 
 	def rtrim(
 		self,
-		df: pd.DataFrame, column: str, create_new_column: bool = False,
+		df: pd.DataFrame, 
+		column: str, 
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		return self.trim(df, column, create_new_column, new_column_name, side="right")
 
 	def substring(
 		self,
-		df: pd.DataFrame, column: str, start: int, length: int,
-		create_new_column: bool = False, new_column_name: str | None = None,
+		df: pd.DataFrame, 
+		column: str, 
+		start: int, 
+		length: int,
+		create_new_column: bool = False, 
+		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Slice using zero-based pandas string offsets."""
 		if length < 0:
@@ -89,18 +97,28 @@ class TextProcessor:
 		values = values.str.slice(0, length)
 		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
+	# TODO Propper
+
 	def replace(
 		self,
-		df: pd.DataFrame, column: str, old_text: str, new_text: str,
-		create_new_column: bool = False, new_column_name: str | None = None,
+		df: pd.DataFrame, 
+		column: str, 
+		old_text: str, 
+		new_text: str,
+		create_new_column: bool = False, 
+		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = df[column].astype("string").str.replace(old_text, new_text, regex=False)
 		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def split(
 		self,
-		df: pd.DataFrame, column: str, delimiter: str, index: int | None = None,
-		create_new_column: bool = False, new_column_name: str | None = None,
+		df: pd.DataFrame, 
+		column: str, 
+		delimiter: str, 
+		index: int | None = None,
+		create_new_column: bool = False, 
+		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Select one token, or expand all tokens into new columns."""
 		if not delimiter:
@@ -123,8 +141,11 @@ class TextProcessor:
 
 	def concat(
 		self,
-		df: pd.DataFrame, columns: list[str], separator: str = "",
-		create_new_column: bool = False, new_column_name: str | None = None,
+		df: pd.DataFrame, 
+		columns: list[str], 
+		separator: str = "",
+		create_new_column: bool = False, 
+		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Concatenate columns; missing inputs propagate to the result."""
 		if not columns:
@@ -133,3 +154,17 @@ class TextProcessor:
 		for column in columns[1:]:
 			values = values.str.cat(df[column].astype("string"), sep=separator)
 		return StructuralProcessor().assign_result(df, columns[0], values, create_new_column, new_column_name)
+
+	# TODO contains
+
+	# TODO starts_with
+
+	# TODO ends_with
+
+	# TODO transform_left (Transform the text until it arrives to the limit value)
+
+	# TODO transform_right (Transform the text until it arrives to the limit value)
+
+	# TODO Length (Length of the string on each cell on the column selected)
+
+	# TODO 
