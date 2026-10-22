@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 
 from engine.processors.structural_processor import StructuralProcessor
-from engine.interfaces.numeric_interface import NumericInterface
 
 
-class NumericProcessor(NumericInterface):
+class NumericProcessor:
 	"""Stateless numeric operations for dataframe pipelines."""
 
 	@staticmethod

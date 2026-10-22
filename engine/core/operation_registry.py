@@ -14,7 +14,6 @@ from engine.processors.numeric_processor import NumericProcessor
 from engine.processors.row_processor import RowProcessor
 from engine.processors.structural_processor import StructuralProcessor
 from engine.processors.text_processor import TextProcessor
-from engine.interfaces.inputs import require_inputs
 
 Operation = Callable[..., pd.DataFrame]
 
@@ -90,6 +89,14 @@ _MULTI_INPUT_OPERATIONS = {"union"}
 _TWO_INPUT_OPERATIONS = {"join", "inner_join", "outer_join"}
 
 
+def _require_inputs(operation: str, inputs: Sequence[pd.DataFrame], count: int) -> None:
+	"""Validate the number of dataframes supplied for a pipeline operation."""
+	if len(inputs) != count:
+		raise ValueError(
+			f"{operation} requires {count} input dataframe(s), received {len(inputs)}"
+		)
+
+
 def get_operation(operation: str) -> Operation:
 	"""Return the concrete processor method for a pipeline operation name."""
 	try:
@@ -109,12 +116,14 @@ def execute_operation(
 	arguments = dict(parameters or {})
 	arguments.update(overrides)
 	if operation in _ZERO_INPUT_OPERATIONS:
-		require_inputs(operation, inputs, 0)
+		_require_inputs(operation, inputs, 0)
 		return function(**arguments)
 	if operation in _MULTI_INPUT_OPERATIONS:
+		if not inputs:
+			raise ValueError(f"{operation} requires at least one input dataframe")
 		return function(inputs, **arguments)
 	if operation in _TWO_INPUT_OPERATIONS:
-		require_inputs(operation, inputs, 2)
+		_require_inputs(operation, inputs, 2)
 		return function(inputs[0], inputs[1], **arguments)
-	require_inputs(operation, inputs, 1)
+	_require_inputs(operation, inputs, 1)
 	return function(inputs[0], **arguments)

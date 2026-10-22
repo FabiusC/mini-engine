@@ -3,10 +3,9 @@
 import pandas as pd
 
 from engine.processors.structural_processor import StructuralProcessor
-from engine.interfaces.date_interface import DateTimeInterface
 
 
-class DateTimeProcessor(DateTimeInterface):
+class DateTimeProcessor:
 	"""Stateless datetime operations for dataframe pipelines."""
 
 	@staticmethod

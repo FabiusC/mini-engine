@@ -4,10 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from engine.interfaces.io_interface import IOInterface
 
-
-class IOProcessor(IOInterface):
+class IOProcessor:
 	"""Stateless io operations for dataframe pipelines."""
 
 	@staticmethod

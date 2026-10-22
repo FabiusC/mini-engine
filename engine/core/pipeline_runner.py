@@ -1,4 +1,4 @@
-"""Execute pipeline nodes in dependency order through operation facades."""
+"""Execute pipeline nodes in dependency order through the operation registry."""
 
 from collections.abc import Mapping
 from pathlib import Path
@@ -11,7 +11,7 @@ from engine.core.pipeline_graph import collect_nodes, topological_order
 
 
 class PipelineRunner:
-	"""Resolve each node's inputs and dispatch to concrete processor methods."""
+	"""Resolve each node's inputs and dispatch operations through the registry."""
 
 	def __init__(self, pipeline: Mapping[str, Any], base_dir: str | Path | None = None) -> None:
 		self.nodes = collect_nodes(pipeline)

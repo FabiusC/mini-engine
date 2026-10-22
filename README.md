@@ -65,8 +65,8 @@ numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
 `PipelineRunner` ordena los nodos por sus aristas y busca cada operación en
 `engine/core/operation_registry.py`, que la dirige directamente al método estático del
-procesador concreto. Las clases de `engine/interfaces/` definen contratos
-abstractos por categoría; los procesadores en `engine/processors/` los implementan:
+procesador concreto. El registro de operaciones es la única fachada del runner;
+las implementaciones funcionales están agrupadas en `engine/processors/`:
 
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
@@ -97,10 +97,11 @@ python main.py
 
 Todas las operaciones siguientes se pueden ejecutar mediante `PipelineRunner` usando
 el nombre en `operation.name` y los argumentos en `parameters`. Las clases de
-`engine/interfaces/` son interfaces abstractas sin implementación; las
-implementaciones pandas están en los procesadores de `engine/processors/`.
-Para invocar desde Python, se llama directamente al procesador o se usa
-`execute_operation` desde `engine.core.operation_registry`.
+`engine/processors/` contienen las funciones estáticas implementadas con pandas.
+El módulo `engine/core/operation_registry.py` resuelve los nombres de operación y
+adapta la cantidad de DataFrames que recibe cada función. Para invocar una operación
+desde Python, se puede llamar directamente al procesador o usar `execute_operation`
+desde ese registro.
 
 ### API de procesadores
 

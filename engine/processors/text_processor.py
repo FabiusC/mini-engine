@@ -3,10 +3,9 @@
 import pandas as pd
 
 from engine.processors.structural_processor import StructuralProcessor
-from engine.interfaces.text_interface import TextInterface
 
 
-class TextProcessor(TextInterface):
+class TextProcessor:
 	"""Stateless text operations for dataframe pipelines."""
 
 	@staticmethod

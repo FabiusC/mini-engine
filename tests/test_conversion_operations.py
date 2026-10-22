@@ -92,7 +92,7 @@ def test_make_time_and_make_date_time_create_new_columns() -> None:
 	assert with_datetime["time_value"].tolist() == with_time["time_value"].tolist()
 
 
-def test_conversion_processor_is_exposed_on_pandas_facade() -> None:
+def test_conversion_processor_is_exposed_on_pandas_aggregator() -> None:
 	from engine import PandasDataProcessor
 
 	assert isinstance(PandasDataProcessor().conversion, ConversionProcessor)

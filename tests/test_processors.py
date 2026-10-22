@@ -1,4 +1,4 @@
-"""Check the public processor API and facade bindings."""
+"""Check the public processor API and operation registry."""
 
 import inspect
 
@@ -15,14 +15,7 @@ from engine.processors.numeric_processor import NumericProcessor
 from engine.processors.row_processor import RowProcessor
 from engine.processors.structural_processor import StructuralProcessor
 from engine.processors.text_processor import TextProcessor
-from engine.interfaces.date_interface import DateTimeInterface
-from engine.interfaces.conversion_interface import ConversionInterface
-from engine.interfaces.io_interface import IOInterface
-from engine.interfaces.logical_interface import LogicalInterface
-from engine.interfaces.numeric_interface import NumericInterface
-from engine.interfaces.row_interface import RowInterface
-from engine.interfaces.structural_interface import StructuralInterface
-from engine.interfaces.text_interface import TextInterface
+from engine.core.operation_registry import OPERATION_PROCESSORS, get_operation
 
 
 @pytest.mark.parametrize("processor", [
@@ -44,21 +37,12 @@ def test_operations_are_contained_in_processor_as_static_methods(processor) -> N
 	assert all(isinstance(method, staticmethod) for method in methods)
 
 
-@pytest.mark.parametrize("interface, processor", [
-	(NumericInterface, NumericProcessor),
-	(TextInterface, TextProcessor),
-	(RowInterface, RowProcessor),
-	(StructuralInterface, StructuralProcessor),
-	(IOInterface, IOProcessor),
-	(ConversionInterface, ConversionProcessor),
-	(DateTimeInterface, DateTimeProcessor),
-	(LogicalInterface, LogicalProcessor),
-])
-def test_processors_implement_abstract_interface_contracts(interface, processor) -> None:
-	assert inspect.isabstract(interface)
-	assert not inspect.isabstract(processor)
-	assert issubclass(processor, interface)
-	assert set(interface.__abstractmethods__).issubset(vars(processor))
+def test_operation_registry_routes_names_to_processor_functions() -> None:
+	assert get_operation("absolute") is NumericProcessor.absolute
+	assert get_operation("lowercase") is TextProcessor.lowercase
+	assert get_operation("date") is ConversionProcessor.date
+	assert get_operation("read_csv") is IOProcessor.read_csv
+	assert all(callable(operation) for operation in OPERATION_PROCESSORS.values())
 
 
 def test_processor_calls_support_classes_and_instances_without_shared_state() -> None:

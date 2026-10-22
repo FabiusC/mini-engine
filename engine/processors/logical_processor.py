@@ -10,10 +10,9 @@ from pandas.api.types import is_bool_dtype
 
 from engine.processors.row_processor import RowProcessor
 from engine.processors.structural_processor import StructuralProcessor
-from engine.interfaces.logical_interface import LogicalInterface
 
 
-class LogicalProcessor(LogicalInterface):
+class LogicalProcessor:
 	"""Stateless logical operations for dataframe pipelines."""
 
 	_CONDITION_PATTERN = re.compile(

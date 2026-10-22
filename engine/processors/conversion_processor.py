@@ -5,10 +5,9 @@ from datetime import time
 import pandas as pd
 
 from engine.processors.structural_processor import StructuralProcessor
-from engine.interfaces.conversion_interface import ConversionInterface
 
 
-class ConversionProcessor(ConversionInterface):
+class ConversionProcessor:
 	"""Stateless dataframe conversions."""
 
 	@staticmethod

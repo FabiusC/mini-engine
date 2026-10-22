@@ -4,10 +4,8 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from engine.interfaces.structural_interface import StructuralInterface
 
-
-class StructuralProcessor(StructuralInterface):
+class StructuralProcessor:
 	"""Stateless structural operations for dataframe pipelines."""
 
 	@staticmethod

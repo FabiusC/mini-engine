@@ -2,10 +2,8 @@
 
 import pandas as pd
 
-from engine.interfaces.row_interface import RowInterface
 
-
-class RowProcessor(RowInterface):
+class RowProcessor:
 	"""Stateless row operations for dataframe pipelines."""
 
 	@staticmethod
