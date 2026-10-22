@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.core.pipeline_runner import PipelineRunner
+from engine.core.pipeline_runner import PipelineRunner
 
 
 def _node(

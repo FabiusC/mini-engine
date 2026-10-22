@@ -2,8 +2,8 @@
 
 import pandas as pd
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.datetime import DateTimeInterface
+from engine.processors.structural_processor import StructuralProcessor
+from engine.interfaces.date_interface import DateTimeInterface
 
 
 class DateTimeProcessor(DateTimeInterface):

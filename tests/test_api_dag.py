@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 
 from main import export_clean_pipeline, run_pipeline
-from tableau_engine.core.pipeline_clean import merge_pipeline_clean
-from tableau_engine.core.pipeline_runner import PipelineRunner
+from engine.core.pipeline_clean import merge_pipeline_clean
+from engine.core.pipeline_runner import PipelineRunner
 
 
 ROOT = Path(__file__).resolve().parents[1]

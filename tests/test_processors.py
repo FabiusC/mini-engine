@@ -6,23 +6,23 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from tableau_engine import PandasDataProcessor
-from tableau_engine.functions.conversion import ConversionProcessor
-from tableau_engine.functions.datetime import DateTimeProcessor
-from tableau_engine.functions.io import IOProcessor
-from tableau_engine.functions.logical import LogicalProcessor
-from tableau_engine.functions.numeric import NumericProcessor
-from tableau_engine.functions.row import RowProcessor
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.functions.text import TextProcessor
-from tableau_engine.interfaces.datetime import DateTimeInterface
-from tableau_engine.interfaces.conversion import ConversionInterface
-from tableau_engine.interfaces.io import IOInterface
-from tableau_engine.interfaces.logical import LogicalInterface
-from tableau_engine.interfaces.numeric import NumericInterface
-from tableau_engine.interfaces.row import RowInterface
-from tableau_engine.interfaces.structural import StructuralInterface
-from tableau_engine.interfaces.text import TextInterface
+from engine import PandasDataProcessor
+from engine.processors.conversion_processor import ConversionProcessor
+from engine.processors.date_processor import DateTimeProcessor
+from engine.processors.io_processor import IOProcessor
+from engine.processors.logical_processor import LogicalProcessor
+from engine.processors.numeric_processor import NumericProcessor
+from engine.processors.row_processor import RowProcessor
+from engine.processors.structural_processor import StructuralProcessor
+from engine.processors.text_processor import TextProcessor
+from engine.interfaces.date_interface import DateTimeInterface
+from engine.interfaces.conversion_interface import ConversionInterface
+from engine.interfaces.io_interface import IOInterface
+from engine.interfaces.logical_interface import LogicalInterface
+from engine.interfaces.numeric_interface import NumericInterface
+from engine.interfaces.row_interface import RowInterface
+from engine.interfaces.structural_interface import StructuralInterface
+from engine.interfaces.text_interface import TextInterface
 
 
 @pytest.mark.parametrize("processor", [

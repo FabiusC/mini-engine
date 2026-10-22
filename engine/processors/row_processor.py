@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from tableau_engine.interfaces.row import RowInterface
+from engine.interfaces.row_interface import RowInterface
 
 
 class RowProcessor(RowInterface):

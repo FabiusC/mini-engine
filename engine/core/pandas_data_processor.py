@@ -1,13 +1,13 @@
 """Single entry point for the pandas operation processors."""
 
-from tableau_engine.functions.datetime import DateTimeProcessor
-from tableau_engine.functions.conversion import ConversionProcessor
-from tableau_engine.functions.io import IOProcessor
-from tableau_engine.functions.logical import LogicalProcessor
-from tableau_engine.functions.numeric import NumericProcessor
-from tableau_engine.functions.row import RowProcessor
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.functions.text import TextProcessor
+from engine.processors.conversion_processor import ConversionProcessor
+from engine.processors.date_processor import DateTimeProcessor
+from engine.processors.io_processor import IOProcessor
+from engine.processors.logical_processor import LogicalProcessor
+from engine.processors.numeric_processor import NumericProcessor
+from engine.processors.row_processor import RowProcessor
+from engine.processors.structural_processor import StructuralProcessor
+from engine.processors.text_processor import TextProcessor
 
 
 class PandasDataProcessor:

@@ -7,8 +7,8 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.core.pipeline_clean import merge_pipeline_clean
-from tableau_engine.core.pipeline_runner import PipelineRunner
+from engine.core.pipeline_clean import merge_pipeline_clean
+from engine.core.pipeline_runner import PipelineRunner
 
 
 def export_clean_pipeline(dag_directory: Path) -> None:

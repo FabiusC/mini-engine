@@ -4,8 +4,8 @@ import numpy as np
 
 import pandas as pd
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.numeric import NumericInterface
+from engine.processors.structural_processor import StructuralProcessor
+from engine.interfaces.numeric_interface import NumericInterface
 
 
 class NumericProcessor(NumericInterface):

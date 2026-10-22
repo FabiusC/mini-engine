@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from tableau_engine.interfaces.structural import StructuralInterface
+from engine.interfaces.structural_interface import StructuralInterface
 
 
 class StructuralProcessor(StructuralInterface):

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from tableau_engine.interfaces.io import IOInterface
+from engine.interfaces.io_interface import IOInterface
 
 
 class IOProcessor(IOInterface):

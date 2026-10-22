@@ -8,9 +8,9 @@ import re
 import pandas as pd
 from pandas.api.types import is_bool_dtype
 
-from tableau_engine.functions.row import RowProcessor
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.logical import LogicalInterface
+from engine.processors.row_processor import RowProcessor
+from engine.processors.structural_processor import StructuralProcessor
+from engine.interfaces.logical_interface import LogicalInterface
 
 
 class LogicalProcessor(LogicalInterface):

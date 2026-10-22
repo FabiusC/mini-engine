@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from tableau_engine.core.operation_registry import execute_operation
-from tableau_engine.functions.conversion import ConversionProcessor
+from engine.core.operation_registry import execute_operation
+from engine.processors.conversion_processor import ConversionProcessor
 
 
 def execute(operation: str, frame: pd.DataFrame, **parameters) -> pd.DataFrame:
@@ -93,6 +93,6 @@ def test_make_time_and_make_date_time_create_new_columns() -> None:
 
 
 def test_conversion_processor_is_exposed_on_pandas_facade() -> None:
-	from tableau_engine import PandasDataProcessor
+	from engine import PandasDataProcessor
 
 	assert isinstance(PandasDataProcessor().conversion, ConversionProcessor)

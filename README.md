@@ -64,10 +64,9 @@ El pipeline previo de lectura, join, operaciones de texto y transformaciones
 numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
 `PipelineRunner` ordena los nodos por sus aristas y busca cada operación en
-`core/operation_registry.py`, que la dirige directamente al método estático del
-procesador concreto. Las clases de `tableau_engine/interfaces/` definen contratos
-abstractos por categoría; los procesadores en `tableau_engine/functions/` los
-implementan:
+`engine/core/operation_registry.py`, que la dirige directamente al método estático del
+procesador concreto. Las clases de `engine/interfaces/` definen contratos
+abstractos por categoría; los procesadores en `engine/processors/` los implementan:
 
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
@@ -98,14 +97,15 @@ python main.py
 
 Todas las operaciones siguientes se pueden ejecutar mediante `PipelineRunner` usando
 el nombre en `operation.name` y los argumentos en `parameters`. Las clases de
-`tableau_engine/interfaces/` son interfaces abstractas sin implementación; las
-implementaciones pandas están en los procesadores de `tableau_engine/functions/`.
+`engine/interfaces/` son interfaces abstractas sin implementación; las
+implementaciones pandas están en los procesadores de `engine/processors/`.
 Para invocar desde Python, se llama directamente al procesador o se usa
-`execute_operation` desde `tableau_engine.core.operation_registry`.
+`execute_operation` desde `engine.core.operation_registry`.
 
 ### API de procesadores
 
-`PandasDataProcessor` es el punto de acceso unificado al backend pandas, equivalente
+`PandasDataProcessor` está definido en `engine/core/pandas_data_processor.py` y es
+el punto de acceso unificado al backend pandas, equivalente
 al agrupador `PolarDataProcessor` del backend Polars. Expone instancias independientes
 por categoría:
 
@@ -121,7 +121,7 @@ por categoría:
 | `logical` | `LogicalProcessor` |
 
 ```python
-from tableau_engine import PandasDataProcessor
+from engine import PandasDataProcessor
 
 pandas_processor = PandasDataProcessor()
 df = pandas_processor.io.read_csv("data/orders_south_2018.csv")
@@ -141,8 +141,8 @@ Las operaciones ya no se importan como funciones sueltas. Se importan las clases
 Son métodos estáticos sin estado compartido; no necesitan instanciarse:
 
 ```python
-from tableau_engine.functions.numeric import NumericProcessor
-from tableau_engine.functions.text import TextProcessor
+from engine.processors.numeric_processor import NumericProcessor
+from engine.processors.text_processor import TextProcessor
 
 result = NumericProcessor.absolute(
     df,
@@ -153,7 +153,7 @@ result = NumericProcessor.absolute(
 result = TextProcessor.trim(result, column="customer_name")
 ```
 
-Los imports anteriores como `from tableau_engine.functions.numeric import absolute`
+Los imports anteriores como `from engine.processors.numeric_processor import absolute`
 deben migrarse a `NumericProcessor.absolute`. Los nombres de operación y los
 parámetros de los pipelines JSON no cambian. Los helpers compartidos también
 pertenecen a los procesadores: `StructuralProcessor.resolve_output_column`,

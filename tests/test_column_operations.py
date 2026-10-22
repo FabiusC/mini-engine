@@ -3,8 +3,8 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.core.operation_registry import execute_operation
+from engine.processors.structural_processor import StructuralProcessor
+from engine.core.operation_registry import execute_operation
 
 
 def _frame() -> pd.DataFrame:

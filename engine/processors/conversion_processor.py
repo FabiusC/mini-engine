@@ -4,8 +4,8 @@ from datetime import time
 
 import pandas as pd
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.conversion import ConversionInterface
+from engine.processors.structural_processor import StructuralProcessor
+from engine.interfaces.conversion_interface import ConversionInterface
 
 
 class ConversionProcessor(ConversionInterface):

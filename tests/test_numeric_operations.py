@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.core.operation_registry import execute_operation
+from engine.core.operation_registry import execute_operation
 
 
 @pytest.mark.parametrize(

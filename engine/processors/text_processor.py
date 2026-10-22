@@ -2,8 +2,8 @@
 
 import pandas as pd
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.text import TextInterface
+from engine.processors.structural_processor import StructuralProcessor
+from engine.interfaces.text_interface import TextInterface
 
 
 class TextProcessor(TextInterface):

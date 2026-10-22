@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.core.operation_registry import execute_operation
-from tableau_engine.core.pipeline_graph import collect_nodes, topological_order
+from engine.core.operation_registry import execute_operation
+from engine.core.pipeline_graph import collect_nodes, topological_order
 
 
 class PipelineRunner:
