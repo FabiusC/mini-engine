@@ -82,6 +82,8 @@ OPERATION_PROCESSORS: dict[str, Operation] = {
 	"pivot": _structural.pivot,
 	"uppercase": _text.uppercase,
 	"upper": _text.uppercase,
+	"proper": _text.proper,
+	"propper": _text.propper,
 	"lowercase": _text.lowercase,
 	"lower": _text.lowercase,
 	"trim": _text.trim,

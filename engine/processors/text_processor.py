@@ -42,6 +42,39 @@ class TextProcessor:
 		result[target] = result[column].astype("string").str.upper()
 		return result
 
+	def proper(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		new_column: bool = False,
+		new_column_name: str | None = None,
+		*,
+		create_new_column: bool | None = None,
+	) -> pd.DataFrame:
+		"""Return a copy with each word capitalized in the source or a new column."""
+		result = df.copy()
+		target = StructuralProcessor().resolve_output_column(
+			result, column, new_column, new_column_name,
+			create_new_column=create_new_column,
+		)
+		result[target] = result[column].astype("string").str.title()
+		return result
+
+	def propper(
+		self,
+		df: pd.DataFrame,
+		column: str,
+		new_column: bool = False,
+		new_column_name: str | None = None,
+		*,
+		create_new_column: bool | None = None,
+	) -> pd.DataFrame:
+		"""Alias of ``proper`` using the operation name from the pipeline specification."""
+		return self.proper(
+			df, column, new_column, new_column_name,
+			create_new_column=create_new_column,
+		)
+
 	def trim(
 		self,
 		df: pd.DataFrame,

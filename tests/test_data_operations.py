@@ -21,6 +21,8 @@ def execute(operation: str, *frames: pd.DataFrame, **parameters) -> pd.DataFrame
 	[
 		("lower", [" Ab "], {}, [" ab "]),
 		("upper", [" Ab "], {}, [" AB "]),
+		("proper", ["hOLA mUNDO"], {}, ["Hola Mundo"]),
+		("propper", ["hOLA mUNDO"], {}, ["Hola Mundo"]),
 		("trim", [" Ab "], {}, ["Ab"]),
 		("ltrim", [" Ab "], {}, ["Ab "]),
 		("rtrim", [" Ab "], {}, [" Ab"]),
@@ -69,7 +71,7 @@ def test_transformations_support_both_output_modes(
 @pytest.mark.parametrize(
 	"operation",
 	[
-		"lower", "upper", "trim", "ltrim", "rtrim", "substring", "replace",
+		"lower", "upper", "proper", "propper", "trim", "ltrim", "rtrim", "substring", "replace",
 		"split", "contains", "starts_with", "ends_with", "transform_left",
 		"transform_right", "length",
 	],
