@@ -20,14 +20,14 @@ class LogicalProcessor:
 		re.IGNORECASE,
 	)
 
-	@staticmethod
 	def _parse_condition(
+		self,
 		df: pd.DataFrame, column: str, statement: str,
 	) -> tuple[pd.Series, str]:
 		"""Parse a single safe ``column operator value`` condition."""
 		if not isinstance(statement, str):
 			raise ValueError("Conditions must be strings in 'column operator value' format")
-		match = LogicalProcessor._CONDITION_PATTERN.fullmatch(statement)
+		match = self._CONDITION_PATTERN.fullmatch(statement)
 		if match is None:
 			raise ValueError("Condition must use 'column operator value' format")
 		if match.group("column").strip() != column:
@@ -50,10 +50,10 @@ class LogicalProcessor:
 				value = raw_value
 			if not isinstance(value, (str, int, float, bool, type(None))):
 				raise ValueError("Condition value must be a scalar literal")
-			return RowProcessor.condition_mask(df[column], operator, value), operator
+			return RowProcessor().condition_mask(df[column], operator, value), operator
 
-	@staticmethod
 	def logical(
+		self,
 			df: pd.DataFrame,
 			operation: str,
 			column: str,
@@ -80,7 +80,7 @@ class LogicalProcessor:
 		elif not isinstance(nombre_nueva_columna, str) or not nombre_nueva_columna:
 			raise ValueError("nombre_nueva_columna is required when reemplazar_campo is false")
 
-		first_mask, first_operator = LogicalProcessor._parse_condition(df, column, sentencia1)
+		first_mask, first_operator = self._parse_condition(df, column, sentencia1)
 		first_mask = first_mask.fillna(False)
 		if operation == "not":
 			values = ~first_mask
@@ -89,10 +89,10 @@ class LogicalProcessor:
 		else:
 			if sentencia2 is None:
 				raise ValueError(f"{operation} requires sentencia2")
-			second_mask, _ = LogicalProcessor._parse_condition(df, column, sentencia2)
+			second_mask, _ = self._parse_condition(df, column, sentencia2)
 			values = operators[operation](first_mask, second_mask.fillna(False))
 
-		return StructuralProcessor.assign_result(
+		return StructuralProcessor().assign_result(
 			df,
 			column,
 			values.astype(bool),
@@ -100,8 +100,8 @@ class LogicalProcessor:
 			new_column_name=nombre_nueva_columna if not reemplazar_campo else None,
 		)
 
-	@staticmethod
 	def coalesce(
+		self,
 		df: pd.DataFrame, column: str, default_value: object,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
@@ -109,10 +109,10 @@ class LogicalProcessor:
 		values = df[column].replace("", None)
 		if default_value is not None:
 			values = values.fillna(default_value)
-		return StructuralProcessor.assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
-	@staticmethod
 	def conditional_map(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		condition_func: Callable[[pd.Series], pd.Series] | Mapping[str, object],
@@ -128,7 +128,7 @@ class LogicalProcessor:
 			operator = condition_func["operator"]
 			if not isinstance(operator, str):
 				raise ValueError("condition operator must be a string")
-			mask = RowProcessor.condition_mask(df[column], operator, condition_func.get("value"))
+			mask = RowProcessor().condition_mask(df[column], operator, condition_func.get("value"))
 		elif callable(condition_func):
 			mask = condition_func(df[column].copy())
 		else:
@@ -136,4 +136,4 @@ class LogicalProcessor:
 		if not isinstance(mask, pd.Series) or not mask.index.equals(df.index) or not is_bool_dtype(mask.dtype):
 			raise ValueError("condition_func must return a boolean Series with the input index")
 		values = pd.Series(true_value, index=df.index).where(mask.fillna(False), false_value)
-		return StructuralProcessor.assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)

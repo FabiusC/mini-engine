@@ -54,8 +54,9 @@ def test_missing_source_column_uses_pandas_key_error() -> None:
 
 
 def test_add_column_fills_a_constant_and_rejects_existing_names() -> None:
-	result = StructuralProcessor.add_column(_frame(), "region", "South")
+	processor = StructuralProcessor()
+	result = processor.add_column(_frame(), "region", "South")
 
 	assert result["region"].tolist() == ["South", "South"]
 	with pytest.raises(ValueError, match="already exists"):
-		StructuralProcessor.add_column(_frame(), "name", "x")
+		processor.add_column(_frame(), "name", "x")

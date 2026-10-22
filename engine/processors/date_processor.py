@@ -8,16 +8,16 @@ from engine.processors.structural_processor import StructuralProcessor
 class DateTimeProcessor:
 	"""Stateless datetime operations for dataframe pipelines."""
 
-	@staticmethod
 	def date_parser(
+		self,
 		df: pd.DataFrame, column: str, date_format: str,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], format=date_format, errors="raise")
-		return StructuralProcessor.assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
-	@staticmethod
 	def date_add(
+		self,
 		df: pd.DataFrame, column: str, unit: str, amount: int,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
@@ -27,19 +27,19 @@ class DateTimeProcessor:
 		if isinstance(amount, bool) or not isinstance(amount, int):
 			raise ValueError("amount must be an integer")
 		values = pd.to_datetime(df[column], errors="raise") + pd.DateOffset(**{unit: amount})
-		return StructuralProcessor.assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
-	@staticmethod
 	def date_sub(
+		self,
 		df: pd.DataFrame, column: str, unit: str, amount: int,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		if isinstance(amount, bool):
 			raise ValueError("amount must be an integer")
-		return DateTimeProcessor.date_add(df, column, unit, -amount, create_new_column, new_column_name)
+		return self.date_add(df, column, unit, -amount, create_new_column, new_column_name)
 
-	@staticmethod
 	def date_diff(
+		self,
 		df: pd.DataFrame, start_column: str, end_column: str, unit: str = "days",
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
@@ -62,14 +62,14 @@ class DateTimeProcessor:
 			values = values.where(~negative, -values).where(start.notna() & end.notna())
 		else:
 			raise ValueError("unit must be 'days', 'months' or 'years'")
-		return StructuralProcessor.assign_result(df, start_column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, start_column, values, create_new_column, new_column_name)
 
-	@staticmethod
 	def extract_date_part(
+		self,
 		df: pd.DataFrame, column: str, part: str,
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		if part not in ("year", "month", "day", "weekday"):
 			raise ValueError("part must be 'year', 'month', 'day' or 'weekday'")
 		values = getattr(pd.to_datetime(df[column], errors="raise").dt, part)
-		return StructuralProcessor.assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)

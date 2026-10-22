@@ -6,8 +6,7 @@ import pandas as pd
 class RowProcessor:
 	"""Stateless row operations for dataframe pipelines."""
 
-	@staticmethod
-	def condition_mask(series: pd.Series, operator: str, value: object = None) -> pd.Series:
+	def condition_mask(self, series: pd.Series, operator: str, value: object = None) -> pd.Series:
 		"""Build a reusable pandas comparison mask, excluding missing comparisons."""
 		if operator == "==":
 			mask = series == value
@@ -29,14 +28,13 @@ class RowProcessor:
 			raise ValueError(f"Unsupported filter operator: {operator!r}")
 		return mask.fillna(False) & series.notna()
 
-	@staticmethod
-	def filter_rows(df: pd.DataFrame, column: str, operator: str, value: object = None) -> pd.DataFrame:
+	def filter_rows(self, df: pd.DataFrame, column: str, operator: str, value: object = None) -> pd.DataFrame:
 		"""Return rows matching a comparison, literal contains, or null test."""
-		mask = RowProcessor.condition_mask(df[column], operator, value)
+		mask = self.condition_mask(df[column], operator, value)
 		return df.loc[mask].copy()
 
-	@staticmethod
 	def sample(
+		self,
 		df: pd.DataFrame,
 		sample_type: str,
 		fraction_or_count: float | int,
@@ -59,8 +57,7 @@ class RowProcessor:
 			return df.sample(n=fraction_or_count, random_state=random_state)
 		raise ValueError("sample_type must be 'random' or 'head'")
 
-	@staticmethod
-	def limit_rows(df: pd.DataFrame, limit: int) -> pd.DataFrame:
+	def limit_rows(self, df: pd.DataFrame, limit: int) -> pd.DataFrame:
 		"""Return a copy containing at most ``limit`` rows."""
 		limit = int(limit)
 		if limit < 0:

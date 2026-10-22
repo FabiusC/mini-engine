@@ -8,8 +8,7 @@ import pandas as pd
 class StructuralProcessor:
 	"""Stateless structural operations for dataframe pipelines."""
 
-	@staticmethod
-	def add_column(df: pd.DataFrame, column_name: str, value: object = None) -> pd.DataFrame:
+	def add_column(self, df: pd.DataFrame, column_name: str, value: object = None) -> pd.DataFrame:
 		"""Return a copy with a new column filled with a constant value."""
 		if column_name in df.columns:
 			raise ValueError(f"Column {column_name!r} already exists")
@@ -17,8 +16,8 @@ class StructuralProcessor:
 		result[column_name] = value
 		return result
 
-	@staticmethod
 	def change_data_type(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		new_type: str | None = None,
@@ -34,15 +33,15 @@ class StructuralProcessor:
 		dtype = target_type if target_type is not None else new_type
 		if dtype is None:
 			raise ValueError("target_type is required")
-		target = StructuralProcessor.resolve_output_column(
+		target = self.resolve_output_column(
 			df, column, new_column, new_column_name, create_new_column=create_new_column
 		)
 		result = df.copy()
 		result[target] = pd.to_datetime(df[column], errors="raise") if dtype == "datetime" else df[column].astype(dtype)
 		return result
 
-	@staticmethod
 	def drop_column(
+		self,
 		df: pd.DataFrame,
 		column: str | Sequence[str] | None = None,
 		*,
@@ -57,8 +56,8 @@ class StructuralProcessor:
 		names = [selected] if isinstance(selected, str) else list(selected)
 		return df.drop(columns=names)
 
-	@staticmethod
 	def join(
+		self,
 		left: pd.DataFrame,
 		right: pd.DataFrame,
 		how: str = "inner",
@@ -82,8 +81,8 @@ class StructuralProcessor:
 			suffixes=tuple(suffixes),
 		)
 
-	@staticmethod
 	def resolve_output_column(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		new_column: bool = False,
@@ -121,8 +120,8 @@ class StructuralProcessor:
 			index += 1
 		return f"{column}_{index}"
 
-	@staticmethod
 	def assign_result(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		values: pd.Series,
@@ -130,15 +129,14 @@ class StructuralProcessor:
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Assign an aligned transformation result without changing the input."""
-		target = StructuralProcessor.resolve_output_column(
+		target = self.resolve_output_column(
 			df, column, new_column_name=new_column_name, create_new_column=create_new_column
 		)
 		result = df.copy()
 		result[target] = values
 		return result
 
-	@staticmethod
-	def union(df_list: Sequence[pd.DataFrame], match_type: str = "auto") -> pd.DataFrame:
+	def union(self, df_list: Sequence[pd.DataFrame], match_type: str = "auto") -> pd.DataFrame:
 		"""Concatenate by column name or by position using the first frame's names."""
 		if len(df_list) < 2:
 			raise ValueError("union requires at least 2 input dataframes")
@@ -151,8 +149,8 @@ class StructuralProcessor:
 			frames = [frame.set_axis(frames[0].columns, axis=1) for frame in frames]
 		return pd.concat(frames, ignore_index=True, sort=False)
 
-	@staticmethod
 	def aggregate(
+		self,
 		df: pd.DataFrame,
 		group_by: list[str],
 		aggregations: dict[str, str | list[str]],
@@ -164,8 +162,8 @@ class StructuralProcessor:
 			return df.groupby(lambda _: 0).agg(aggregations).reset_index(drop=True)
 		return df.groupby(group_by, dropna=False, as_index=False).agg(aggregations)
 
-	@staticmethod
 	def pivot(
+		self,
 		df: pd.DataFrame,
 		pivot_type: str,
 		index_cols: list[str],
@@ -179,8 +177,7 @@ class StructuralProcessor:
 			return df.pivot(index=index_cols, columns=target_col, values=values_col).reset_index()
 		raise ValueError("pivot_type must be 'columns_to_rows' or 'rows_to_columns'")
 
-	@staticmethod
-	def rename_column(df: pd.DataFrame, column: str, new_name: str) -> pd.DataFrame:
+	def rename_column(self, df: pd.DataFrame, column: str, new_name: str) -> pd.DataFrame:
 		"""Return a copy with ``column`` renamed to ``new_name``."""
 		if column not in df.columns:
 			raise ValueError(f"Column {column!r} is not present in the input")
@@ -188,8 +185,8 @@ class StructuralProcessor:
 			raise ValueError(f"Column {new_name!r} already exists")
 		return df.rename(columns={column: new_name})
 
-	@staticmethod
 	def sort_rows(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		direction: str = "asc",

@@ -10,8 +10,8 @@ from engine.processors.structural_processor import StructuralProcessor
 class ConversionProcessor:
 	"""Stateless dataframe conversions."""
 
-	@staticmethod
 	def _assign(
+		self,
 		df: pd.DataFrame,
 		source: str,
 		values: pd.Series,
@@ -24,13 +24,12 @@ class ConversionProcessor:
 			raise ValueError("new_column_name requires replace to be false")
 		if not replace and not new_column_name:
 			raise ValueError("new_column_name is required when replace is false")
-		return StructuralProcessor.assign_result(
+		return StructuralProcessor().assign_result(
 			df, source, values, create_new_column=not replace,
 			new_column_name=new_column_name if not replace else None,
 		)
 
-	@staticmethod
-	def _integer_parts(df: pd.DataFrame, columns: tuple[str, ...]) -> dict[str, pd.Series]:
+	def _integer_parts(self, df: pd.DataFrame, columns: tuple[str, ...]) -> dict[str, pd.Series]:
 		parts = {}
 		for name in columns:
 			values = pd.to_numeric(df[name], errors="raise")
@@ -39,58 +38,58 @@ class ConversionProcessor:
 			parts[name] = values.astype("Int64")
 		return parts
 
-	@staticmethod
 	def date(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		replace: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="raise").dt.normalize()
-		return ConversionProcessor._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, replace, new_column_name)
 
-	@staticmethod
 	def datetime(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		replace: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="raise")
-		return ConversionProcessor._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, replace, new_column_name)
 
-	@staticmethod
 	def float(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		replace: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_numeric(df[column], errors="raise").astype("float64")
-		return ConversionProcessor._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, replace, new_column_name)
 
-	@staticmethod
 	def int(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		replace: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_numeric(df[column], errors="raise").astype("Int64")
-		return ConversionProcessor._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, replace, new_column_name)
 
-	@staticmethod
 	def str(
+		self,
 		df: pd.DataFrame,
 		column: str,
 		replace: bool = True,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = df[column].astype("string")
-		return ConversionProcessor._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, replace, new_column_name)
 
-	@staticmethod
 	def make_date(
+		self,
 		df: pd.DataFrame,
 		column_day: str,
 		column_month: str,
@@ -98,7 +97,7 @@ class ConversionProcessor:
 		replace: bool = False,
 		new_column_name: str = "date",
 	) -> pd.DataFrame:
-		parts = ConversionProcessor._integer_parts(
+		parts = self._integer_parts(
 			df, (column_year, column_month, column_day),
 		)
 		month = parts[column_month]
@@ -122,18 +121,18 @@ class ConversionProcessor:
 		)
 		values = pd.to_datetime(components, errors="raise")
 		if replace:
-			return ConversionProcessor._assign(df, column_day, values, True, None)
-		return ConversionProcessor._assign(df, column_day, values, False, new_column_name)
+			return self._assign(df, column_day, values, True, None)
+		return self._assign(df, column_day, values, False, new_column_name)
 
-	@staticmethod
 	def make_time(
+		self,
 		df: pd.DataFrame,
 		column_hour: str,
 		column_minute: str,
 		column_second: str,
 		new_column_name: str = "time",
 	) -> pd.DataFrame:
-		parts = ConversionProcessor._integer_parts(
+		parts = self._integer_parts(
 			df, (column_hour, column_minute, column_second),
 		)
 		for column, maximum in ((column_hour, 23), (column_minute, 59), (column_second, 59)):
@@ -149,12 +148,12 @@ class ConversionProcessor:
 			"second": parts[column_second],
 		}, errors="raise")
 		values = datetimes.dt.time
-		return ConversionProcessor._assign(
+		return self._assign(
 			df, column_hour, values, False, new_column_name,
 		)
 
-	@staticmethod
 	def make_date_time(
+		self,
 		df: pd.DataFrame,
 		column_date: str,
 		column_hour: str,
@@ -180,6 +179,6 @@ class ConversionProcessor:
 		if ((times.dropna() < pd.Timedelta(0)) | (times.dropna() >= pd.Timedelta(days=1))).any():
 			raise ValueError("time values must be within a single day")
 		values = dates + times
-		return ConversionProcessor._assign(
+		return self._assign(
 			df, column_date, values, False, new_column_name,
 		)

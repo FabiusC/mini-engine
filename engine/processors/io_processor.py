@@ -8,24 +8,22 @@ import pandas as pd
 class IOProcessor:
 	"""Stateless io operations for dataframe pipelines."""
 
-	@staticmethod
-	def read_csv(filepath: str | Path) -> pd.DataFrame:
+	def read_csv(self, filepath: str | Path) -> pd.DataFrame:
 		"""Read a CSV as UTF-8, falling back to Latin-1 when decoding fails."""
 		try:
 			return pd.read_csv(filepath, encoding="utf-8-sig")
 		except UnicodeDecodeError:
 			return pd.read_csv(filepath, encoding="latin1")
 
-	@staticmethod
-	def write_csv(df: pd.DataFrame, filepath: str | Path, index: bool = False) -> pd.DataFrame:
+	def write_csv(self, df: pd.DataFrame, filepath: str | Path, index: bool = False) -> pd.DataFrame:
 		"""Overwrite the target CSV and return the dataframe unchanged."""
 		path = Path(filepath)
 		path.parent.mkdir(parents=True, exist_ok=True)
 		df.to_csv(path, index=index)
 		return df
 
-	@staticmethod
 	def input_data(
+		self,
 		source_type: str,
 		filepath_or_connection: str | Path,
 		table_or_sheet: str | None = None,
@@ -45,8 +43,8 @@ class IOProcessor:
 			return pd.read_sql_table(table_or_sheet, con=str(filepath_or_connection))
 		raise ValueError(f"Unsupported source_type: {source_type!r}")
 
-	@staticmethod
 	def output_data(
+		self,
 		df: pd.DataFrame,
 		destination_type: str,
 		output_path: str | Path,
@@ -64,7 +62,7 @@ class IOProcessor:
 		path.parent.mkdir(parents=True, exist_ok=True)
 		append = write_mode == "append" and path.exists() and path.stat().st_size > 0
 		if append:
-			existing = IOProcessor.input_data(destination_type, path, encoding=encoding, delimiter=delimiter)
+			existing = self.input_data(destination_type, path, encoding=encoding, delimiter=delimiter)
 			if list(existing.columns) != list(df.columns):
 				raise ValueError("append requires matching column names and order")
 			values = pd.concat([existing, df], ignore_index=True)
