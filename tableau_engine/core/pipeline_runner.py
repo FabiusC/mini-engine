@@ -6,12 +6,12 @@ from typing import Any
 
 import pandas as pd
 
-from tableau_engine.core.operation_registry import get_interface
+from tableau_engine.core.operation_registry import execute_operation
 from tableau_engine.core.pipeline_graph import collect_nodes, topological_order
 
 
 class PipelineRunner:
-	"""Resolve each node's inputs and parameters, then delegate to its facade."""
+	"""Resolve each node's inputs and dispatch to concrete processor methods."""
 
 	def __init__(self, pipeline: Mapping[str, Any], base_dir: str | Path | None = None) -> None:
 		self.nodes = collect_nodes(pipeline)
@@ -72,8 +72,9 @@ class PipelineRunner:
 			node = self.nodes[node_id]
 			operation = (node.get("operation") or {}).get("name", "").lower()
 			inputs = self._inputs(node, datasources, results, edges_by_port)
-			interface = get_interface(operation)
-			results[node_id] = interface.execute(operation, inputs, **self._parameters(node, parameters))
+			results[node_id] = execute_operation(
+				operation, inputs, self._parameters(node, parameters),
+			)
 		return results
 
 	@property

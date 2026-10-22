@@ -3,9 +3,10 @@
 import pandas as pd
 
 from tableau_engine.functions.structural import StructuralProcessor
+from tableau_engine.interfaces.text import TextInterface
 
 
-class TextProcessor:
+class TextProcessor(TextInterface):
 	"""Stateless text operations for dataframe pipelines."""
 
 	@staticmethod

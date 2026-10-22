@@ -1,49 +1,73 @@
-"""Facade for operations that combine datasets."""
+"""Abstract contracts for dataframe structure and combination operations."""
 
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
 
 import pandas as pd
 
-from tableau_engine.functions.structural import StructuralProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class StructuralInterface:
-	"""Route joins and dataframe-structure operations."""
-
-	_join_types = {"inner_join": "inner", "outer_join": "outer"}
-	_operations = {
-		"union": StructuralProcessor.union,
-		"join": StructuralProcessor.join,
-		"inner_join": StructuralProcessor.join,
-		"outer_join": StructuralProcessor.join,
-		"add_column": StructuralProcessor.add_column,
-		"sort": StructuralProcessor.sort_rows,
-		"drop-column": StructuralProcessor.drop_column,
-		"drop_column": StructuralProcessor.drop_column,
-		"rename-column": StructuralProcessor.rename_column,
-		"rename_column": StructuralProcessor.rename_column,
-		"change-data-type": StructuralProcessor.change_data_type,
-		"change_data_type": StructuralProcessor.change_data_type,
-		"aggregate": StructuralProcessor.aggregate,
-		"pivot": StructuralProcessor.pivot,
-	}
+class StructuralInterface(ABC):
+	"""Contract implemented by pandas structural processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		"""Apply a join or a structural operation to dataframe inputs."""
-		if operation == "union":
-			return StructuralProcessor.union(inputs, **parameters)
-		function = StructuralInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown structural operation: {operation}")
-		if operation == "join":
-			require_inputs(operation, inputs, 2)
-			return function(inputs[0], inputs[1], **parameters)
-		how = StructuralInterface._join_types.get(operation)
-		if how is not None:
-			require_inputs(operation, inputs, 2)
-			return function(inputs[0], inputs[1], how=how, **parameters)
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def add_column(
+		df: pd.DataFrame, column_name: str, value: object = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def change_data_type(
+		df: pd.DataFrame, column: str, new_type: str | None = None, *,
+		target_type: str | None = None,
+		create_new_column: bool | None = None, new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def drop_column(
+		df: pd.DataFrame, column: str | Sequence[str] | None = None, *,
+		columns: Sequence[str] | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def join(
+		left: pd.DataFrame, right: pd.DataFrame, how: str = "inner",
+		left_on: str | list[str] | None = None,
+		right_on: str | list[str] | None = None,
+		suffixes: Sequence[str] = ("_x", "_y"),
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def union(
+		df_list: Sequence[pd.DataFrame], match_type: str = "auto",
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def aggregate(
+		df: pd.DataFrame, group_by: list[str],
+		aggregations: dict[str, str | list[str]],
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def pivot(
+		df: pd.DataFrame, pivot_type: str, index_cols: list[str],
+		target_col: str, values_col: str,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def rename_column(
+		df: pd.DataFrame, column: str, new_name: str,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def sort_rows(
+		df: pd.DataFrame, column: str, direction: str = "asc",
+	) -> pd.DataFrame: ...

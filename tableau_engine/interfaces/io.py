@@ -1,32 +1,36 @@
-"""Facade for reading and writing datasets."""
+"""Abstract contracts for dataset input and output operations."""
 
-from collections.abc import Sequence
-from typing import Any
+from abc import ABC, abstractmethod
+from pathlib import Path
 
 import pandas as pd
 
-from tableau_engine.functions.io import IOProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class IOInterface:
-	"""Route input and output operations."""
-
-	_operations = {
-		"input": IOProcessor.input_data,
-		"output": IOProcessor.output_data,
-		"read_csv": IOProcessor.read_csv,
-		"write_csv": IOProcessor.write_csv,
-	}
+class IOInterface(ABC):
+	"""Contract implemented by pandas IO processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		"""Read a source without inputs, or write the single input dataframe."""
-		function = IOInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown IO operation: {operation}")
-		if operation in ("input", "read_csv"):
-			require_inputs(operation, inputs, 0)
-			return function(**parameters)
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def read_csv(filepath: str | Path) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def write_csv(
+		df: pd.DataFrame, filepath: str | Path, index: bool = False,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def input_data(
+		source_type: str, filepath_or_connection: str | Path,
+		table_or_sheet: str | None = None, encoding: str = "utf-8",
+		delimiter: str = ",",
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def output_data(
+		df: pd.DataFrame, destination_type: str, output_path: str | Path,
+		write_mode: str = "overwrite", *, encoding: str = "utf-8",
+		delimiter: str = ",",
+	) -> pd.DataFrame: ...

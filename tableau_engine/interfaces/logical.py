@@ -1,34 +1,34 @@
-"""Facade for null handling and conditional transformations."""
+"""Abstract contracts for logical dataframe transformations."""
 
-from collections.abc import Sequence
-from functools import partial
-from typing import Any
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Mapping
 
 import pandas as pd
 
-from tableau_engine.functions.logical import LogicalProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class LogicalInterface:
-	"""Route logical operations."""
-
-	_operations = {
-		"coalesce": LogicalProcessor.coalesce,
-		"ifnull": LogicalProcessor.coalesce,
-		"conditional_map": LogicalProcessor.conditional_map,
-		"and": partial(LogicalProcessor.logical, operation="and"),
-		"case": partial(LogicalProcessor.logical, operation="case"),
-		"if": partial(LogicalProcessor.logical, operation="if"),
-		"elseif": partial(LogicalProcessor.logical, operation="elseif"),
-		"or": partial(LogicalProcessor.logical, operation="or"),
-		"not": partial(LogicalProcessor.logical, operation="not"),
-	}
+class LogicalInterface(ABC):
+	"""Contract implemented by pandas logical processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		function = LogicalInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown logical operation: {operation}")
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def logical(
+		df: pd.DataFrame, operation: str, column: str, sentencia1: str,
+		sentencia2: str | None = None, reemplazar_campo: bool = True,
+		nombre_nueva_columna: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def coalesce(
+		df: pd.DataFrame, column: str, default_value: object,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def conditional_map(
+		df: pd.DataFrame, column: str,
+		condition_func: Callable[[pd.Series], pd.Series] | Mapping[str, object],
+		true_value: object, false_value: object,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...

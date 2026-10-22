@@ -4,8 +4,10 @@ from collections.abc import Sequence
 
 import pandas as pd
 
+from tableau_engine.interfaces.structural import StructuralInterface
 
-class StructuralProcessor:
+
+class StructuralProcessor(StructuralInterface):
 	"""Stateless structural operations for dataframe pipelines."""
 
 	@staticmethod

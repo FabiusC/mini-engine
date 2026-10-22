@@ -6,12 +6,12 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from tableau_engine.core.operation_registry import get_interface
+from tableau_engine.core.operation_registry import execute_operation
 from tableau_engine.functions.conversion import ConversionProcessor
 
 
 def execute(operation: str, frame: pd.DataFrame, **parameters) -> pd.DataFrame:
-	return get_interface(operation).execute(operation, [frame], **parameters)
+	return execute_operation(operation, [frame], **parameters)
 
 
 @pytest.mark.parametrize(

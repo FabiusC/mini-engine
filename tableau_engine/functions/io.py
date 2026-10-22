@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from tableau_engine.interfaces.io import IOInterface
 
-class IOProcessor:
+
+class IOProcessor(IOInterface):
 	"""Stateless io operations for dataframe pipelines."""
 
 	@staticmethod

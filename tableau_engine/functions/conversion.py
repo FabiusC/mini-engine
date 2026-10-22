@@ -5,9 +5,10 @@ from datetime import time
 import pandas as pd
 
 from tableau_engine.functions.structural import StructuralProcessor
+from tableau_engine.interfaces.conversion import ConversionInterface
 
 
-class ConversionProcessor:
+class ConversionProcessor(ConversionInterface):
 	"""Stateless dataframe conversions."""
 
 	@staticmethod

@@ -2,8 +2,10 @@
 
 import pandas as pd
 
+from tableau_engine.interfaces.row import RowInterface
 
-class RowProcessor:
+
+class RowProcessor(RowInterface):
 	"""Stateless row operations for dataframe pipelines."""
 
 	@staticmethod

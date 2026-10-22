@@ -181,14 +181,25 @@ def test_run_pipeline_executes_pipeline_test_writer(tmp_path: Path) -> None:
 	pipeline_path = tmp_path / "pipeline_test.json"
 	shutil.copy(ROOT / "dag" / "pipeline_test.json", pipeline_path)
 	output_path = tmp_path / "processed.csv"
-	parameters = {"local_write_clean_output": {"filepath": str(output_path)}}
+	parameters = {"write_output": {"filepath": str(output_path)}}
 
 	run_pipeline(ROOT, pipeline_path, parameters=parameters)
 
 	assert output_path.is_file()
 	result = pd.read_csv(output_path)
 	assert not result.empty
-	assert len(result.columns) == 133
+	assert result.columns.tolist() == [
+		"Profit_south",
+		"Order Date",
+		"Customer Name_south",
+		"Postal Code_south",
+		"profit_in_range",
+		"absolute_profit",
+		"postal_code_text",
+		"postal_code_concat",
+		"customer_name_lower",
+		"order_month",
+	]
 
 
 def test_generated_pipeline_can_replace_local_pipeline_file(tmp_path: Path, capsys) -> None:

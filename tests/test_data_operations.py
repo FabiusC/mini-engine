@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from tableau_engine.core.operation_registry import get_interface
+from tableau_engine.core.operation_registry import execute_operation
 from tableau_engine.core.pipeline_runner import PipelineRunner
 
 
 def execute(operation: str, *frames: pd.DataFrame, **parameters) -> pd.DataFrame:
-	return get_interface(operation).execute(operation, frames, **parameters)
+	return execute_operation(operation, frames, **parameters)
 
 
 @pytest.mark.parametrize("create", [False, True])

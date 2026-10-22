@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from tableau_engine.interfaces.numeric import NumericInterface
+from tableau_engine.core.operation_registry import execute_operation
 
 
 @pytest.mark.parametrize(
@@ -22,7 +22,7 @@ def test_numeric_operations_create_a_column_without_changing_source(
 	frame = pd.DataFrame({"value": [-2.7, 1.235]})
 	parameters = {"decimals": 2} if operation == "round" else {}
 
-	result = NumericInterface.execute(
+	result = execute_operation(
 		operation,
 		[frame],
 		column="value",
@@ -39,7 +39,7 @@ def test_numeric_operations_create_a_column_without_changing_source(
 def test_numeric_operations_replace_source_and_preserve_missing_values() -> None:
 	frame = pd.DataFrame({"value": [-2.7, None]})
 
-	result = NumericInterface.execute("floor", [frame], column="value")
+	result = execute_operation("floor", [frame], column="value")
 
 	assert result["value"].iloc[0] == -3
 	assert pd.isna(result["value"].iloc[1])
@@ -50,13 +50,13 @@ def test_numeric_operation_rejects_non_numeric_columns() -> None:
 	frame = pd.DataFrame({"value": ["not numeric"]})
 
 	with pytest.raises(ValueError):
-		NumericInterface.execute("absolute", [frame], column="value")
+		execute_operation("absolute", [frame], column="value")
 
 
 def test_clean_float_coerces_invalid_values_and_preserves_source() -> None:
 	frame = pd.DataFrame({"value": ["1.25", "bad", None, float("nan")]})
 
-	result = NumericInterface.execute("clean_float", [frame], column="value")
+	result = execute_operation("clean_float", [frame], column="value")
 
 	assert result["value"].tolist() == [1.25, 0.0, 0.0, 0.0]
 	assert result["value"].dtype == "float64"
@@ -73,7 +73,7 @@ def test_horizontal_min_and_max_create_a_new_column(
 ) -> None:
 	frame = pd.DataFrame({"left": [2, 4, 7], "right": [5, -1, 7]})
 
-	result = NumericInterface.execute(
+	result = execute_operation(
 		operation,
 		[frame],
 		column_a="left",
@@ -88,7 +88,7 @@ def test_horizontal_min_and_max_create_a_new_column(
 def test_power_supports_a_new_output_column() -> None:
 	frame = pd.DataFrame({"value": [-2, 3]})
 
-	result = NumericInterface.execute(
+	result = execute_operation(
 		"power",
 		[frame],
 		column="value",

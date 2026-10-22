@@ -1,29 +1,74 @@
-"""Facade for text transformations."""
+"""Abstract contracts for text dataframe transformations."""
 
-from collections.abc import Sequence
-from typing import Any
+from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from tableau_engine.functions.text import TextProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class TextInterface:
-	"""Route text operations with shared output-column controls."""
-
-	_operations = {
-		"uppercase": TextProcessor.uppercase, "upper": TextProcessor.uppercase,
-		"lowercase": TextProcessor.lowercase, "lower": TextProcessor.lowercase,
-		"trim": TextProcessor.trim, "ltrim": TextProcessor.ltrim, "rtrim": TextProcessor.rtrim,
-		"substring": TextProcessor.substring, "replace": TextProcessor.replace, "split": TextProcessor.split, "concat": TextProcessor.concat,
-	}
+class TextInterface(ABC):
+	"""Contract implemented by pandas text processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		"""Apply a text operation to the single input dataframe."""
-		function = TextInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown text operation: {operation}")
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def lowercase(
+		df: pd.DataFrame, column: str, new_column: bool = False,
+		new_column_name: str | None = None, *,
+		create_new_column: bool | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def uppercase(
+		df: pd.DataFrame, column: str, new_column: bool = False,
+		new_column_name: str | None = None, *,
+		create_new_column: bool | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def trim(
+		df: pd.DataFrame, column: str, create_new_column: bool = False,
+		new_column_name: str | None = None, *, side: str = "both",
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def ltrim(
+		df: pd.DataFrame, column: str, create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def rtrim(
+		df: pd.DataFrame, column: str, create_new_column: bool = False,
+		new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def substring(
+		df: pd.DataFrame, column: str, start: int, length: int,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def replace(
+		df: pd.DataFrame, column: str, old_text: str, new_text: str,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def split(
+		df: pd.DataFrame, column: str, delimiter: str, index: int | None = None,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def concat(
+		df: pd.DataFrame, columns: list[str], separator: str = "",
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...

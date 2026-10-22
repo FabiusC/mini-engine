@@ -1,7 +1,6 @@
 """Check the public processor API and facade bindings."""
 
 import inspect
-from functools import partial
 
 import pandas as pd
 import pytest
@@ -45,20 +44,21 @@ def test_operations_are_contained_in_processor_as_static_methods(processor) -> N
 	assert all(isinstance(method, staticmethod) for method in methods)
 
 
-@pytest.mark.parametrize("interface, processor, mapping_name", [
-	(NumericInterface, NumericProcessor, "_operations"),
-	(TextInterface, TextProcessor, "_operations"),
-	(RowInterface, RowProcessor, "_operations"),
-	(StructuralInterface, StructuralProcessor, "_operations"),
-	(IOInterface, IOProcessor, "_operations"),
-	(ConversionInterface, ConversionProcessor, "_operations"),
-	(DateTimeInterface, DateTimeProcessor, "_operations"),
-	(LogicalInterface, LogicalProcessor, "_operations"),
+@pytest.mark.parametrize("interface, processor", [
+	(NumericInterface, NumericProcessor),
+	(TextInterface, TextProcessor),
+	(RowInterface, RowProcessor),
+	(StructuralInterface, StructuralProcessor),
+	(IOInterface, IOProcessor),
+	(ConversionInterface, ConversionProcessor),
+	(DateTimeInterface, DateTimeProcessor),
+	(LogicalInterface, LogicalProcessor),
 ])
-def test_facades_bind_processor_methods(interface, processor, mapping_name) -> None:
-	for function in getattr(interface, mapping_name).values():
-		bound_function = function.func if isinstance(function, partial) else function
-		assert bound_function is getattr(processor, bound_function.__name__)
+def test_processors_implement_abstract_interface_contracts(interface, processor) -> None:
+	assert inspect.isabstract(interface)
+	assert not inspect.isabstract(processor)
+	assert issubclass(processor, interface)
+	assert set(interface.__abstractmethods__).issubset(vars(processor))
 
 
 def test_processor_calls_support_classes_and_instances_without_shared_state() -> None:

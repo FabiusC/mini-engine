@@ -1,26 +1,44 @@
-"""Facade for calendar transformations."""
+"""Abstract contracts for calendar transformations."""
 
-from collections.abc import Sequence
-from typing import Any
+from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from tableau_engine.functions.datetime import DateTimeProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class DateTimeInterface:
-	"""Route pandas date and time transformations."""
-
-	_operations = {
-		"date_parser": DateTimeProcessor.date_parser, "date_add": DateTimeProcessor.date_add, "date_sub": DateTimeProcessor.date_sub,
-		"date_diff": DateTimeProcessor.date_diff, "extract_date_part": DateTimeProcessor.extract_date_part,
-	}
+class DateTimeInterface(ABC):
+	"""Contract implemented by pandas date and time processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		function = DateTimeInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown datetime operation: {operation}")
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def date_parser(
+		df: pd.DataFrame, column: str, date_format: str,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def date_add(
+		df: pd.DataFrame, column: str, unit: str, amount: int,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def date_sub(
+		df: pd.DataFrame, column: str, unit: str, amount: int,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def date_diff(
+		df: pd.DataFrame, start_column: str, end_column: str, unit: str = "days",
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def extract_date_part(
+		df: pd.DataFrame, column: str, part: str,
+		create_new_column: bool = False, new_column_name: str | None = None,
+	) -> pd.DataFrame: ...

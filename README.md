@@ -63,9 +63,11 @@ del proyecto.
 El pipeline previo de lectura, join, operaciones de texto y transformaciones
 numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
-`PipelineRunner` ordena los nodos por sus aristas y delega cada operación en la
-fachada de su categoría mediante `core/operation_registry.py`. Cada fachada llama
-a los métodos estáticos del `Processor` correspondiente:
+`PipelineRunner` ordena los nodos por sus aristas y busca cada operación en
+`core/operation_registry.py`, que la dirige directamente al método estático del
+procesador concreto. Las clases de `tableau_engine/interfaces/` definen contratos
+abstractos por categoría; los procesadores en `tableau_engine/functions/` los
+implementan:
 
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
@@ -95,9 +97,11 @@ python main.py
 ## Motor de operaciones de datos
 
 Todas las operaciones siguientes se pueden ejecutar mediante `PipelineRunner` usando
-el nombre en `operation.name` y los argumentos en `parameters`. Las funciones pandas
-se encuentran dentro de clases en `tableau_engine/functions/`; las fachadas en
-`tableau_engine/interfaces/` validan el número de entradas.
+el nombre en `operation.name` y los argumentos en `parameters`. Las clases de
+`tableau_engine/interfaces/` son interfaces abstractas sin implementación; las
+implementaciones pandas están en los procesadores de `tableau_engine/functions/`.
+Para invocar desde Python, se llama directamente al procesador o se usa
+`execute_operation` desde `tableau_engine.core.operation_registry`.
 
 ### API de procesadores
 

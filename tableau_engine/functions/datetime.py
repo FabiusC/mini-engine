@@ -3,9 +3,10 @@
 import pandas as pd
 
 from tableau_engine.functions.structural import StructuralProcessor
+from tableau_engine.interfaces.datetime import DateTimeInterface
 
 
-class DateTimeProcessor:
+class DateTimeProcessor(DateTimeInterface):
 	"""Stateless datetime operations for dataframe pipelines."""
 
 	@staticmethod

@@ -1,24 +1,26 @@
-"""Facade for operations that select rows."""
+"""Abstract contracts for row selection and sampling operations."""
 
-from collections.abc import Sequence
-from typing import Any
+from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from tableau_engine.functions.row import RowProcessor
-from tableau_engine.interfaces.inputs import require_inputs
 
-
-class RowInterface:
-	"""Route row selection operations."""
-
-	_operations = {"filter": RowProcessor.filter_rows, "limit": RowProcessor.limit_rows, "sample": RowProcessor.sample}
+class RowInterface(ABC):
+	"""Contract implemented by pandas row processors."""
 
 	@staticmethod
-	def execute(operation: str, inputs: Sequence[pd.DataFrame], **parameters: Any) -> pd.DataFrame:
-		"""Apply a row operation to the single input dataframe."""
-		function = RowInterface._operations.get(operation)
-		if function is None:
-			raise ValueError(f"Unknown row operation: {operation}")
-		require_inputs(operation, inputs, 1)
-		return function(inputs[0], **parameters)
+	@abstractmethod
+	def filter_rows(
+		df: pd.DataFrame, column: str, operator: str, value: object = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def sample(
+		df: pd.DataFrame, sample_type: str, fraction_or_count: float | int,
+		random_state: int | None = None,
+	) -> pd.DataFrame: ...
+
+	@staticmethod
+	@abstractmethod
+	def limit_rows(df: pd.DataFrame, limit: int) -> pd.DataFrame: ...

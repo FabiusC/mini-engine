@@ -10,9 +10,10 @@ from pandas.api.types import is_bool_dtype
 
 from tableau_engine.functions.row import RowProcessor
 from tableau_engine.functions.structural import StructuralProcessor
+from tableau_engine.interfaces.logical import LogicalInterface
 
 
-class LogicalProcessor:
+class LogicalProcessor(LogicalInterface):
 	"""Stateless logical operations for dataframe pipelines."""
 
 	_CONDITION_PATTERN = re.compile(
