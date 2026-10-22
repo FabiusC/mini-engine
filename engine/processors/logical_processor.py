@@ -50,7 +50,7 @@ class LogicalProcessor:
 				value = raw_value
 			if not isinstance(value, (str, int, float, bool, type(None))):
 				raise ValueError("Condition value must be a scalar literal")
-			return RowProcessor().condition_mask(df[column], operator, value), operator
+		return RowProcessor().condition_mask(df[column], operator, value), operator
 
 	def logical(
 		self,

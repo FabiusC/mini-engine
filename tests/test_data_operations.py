@@ -244,6 +244,15 @@ def test_logical_conditions_support_named_output_and_validate_statements() -> No
 		execute("and", frame, column="value", sentencia1="value == 1")
 
 
+def test_logical_conditions_support_isnull_statement() -> None:
+	frame = pd.DataFrame({"value": [None, "present"]})
+	result = execute(
+		"not", frame, column="value", sentencia1="value isnull",
+		reemplazar_campo=False, nombre_nueva_columna="is_present",
+	)
+	assert result["is_present"].tolist() == [False, True]
+
+
 @pytest.mark.parametrize(
 	"unit, expected",
 	[("days", [1.5, -1.5]), ("months", [0, 0]), ("years", [0, 0])],
