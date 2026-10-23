@@ -73,12 +73,12 @@ las implementaciones funcionales están agrupadas en `engine/processors/`:
 | io | `read_csv`, `write_csv` | `filepath` |
 | structural | `inner_join`, `outer_join`, `sort`, `add_column`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column_name`, `value`; `column`; `column`, `new_name`; `column`, `new_type` |
 | row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
-| text | `uppercase`, `lowercase` | `column`, `new_column`, `new_column_name` |
-| numeric | `absolute`, `ceiling`, `clean_float`, `floor`, `max`, `min`, `power`, `round` | `column`, `new_column`, `new_column_name`; `column_a`, `column_b`, `new_column_name` para `max`/`min`; `value` para `power`; `decimals` para `round` |
+| text | `uppercase`, `lowercase` | `column`, `create_new_column`, `new_column_name` |
+| numeric | `absolute`, `ceiling`, `clean_float`, `floor`, `max`, `min`, `power`, `round` | `column`, `create_new_column`, `new_column_name`; `column_a`, `column_b`, `new_column_name` para `max`/`min`; `value` para `power`; `decimals` para `round` |
 
-En las operaciones antiguas de texto, `new_column: false` (por defecto) actualiza la columna
-original. Con `true`, el resultado va a `new_column_name` o, si no se indica, a la
-columna original con el siguiente índice libre (`City_1`, `City_2`, ...).
+`create_new_column: false` (por defecto) actualiza la columna original. Con `true`,
+el resultado va a `new_column_name` o, si no se indica, a una nueva columna
+`<columna>_processed` (con sufijo incremental si ese nombre ya existe).
 
 Las operaciones numéricas usan la misma selección de columna destino. `round` acepta
 `decimals`; en el pipeline de ejemplo, `absolute` y `ceiling` crean columnas nuevas,
@@ -155,8 +155,9 @@ result = TextProcessor.trim(result, column="customer_name")
 ```
 
 Los imports anteriores como `from engine.processors.numeric_processor import absolute`
-deben migrarse a `NumericProcessor.absolute`. Los nombres de operación y los
-parámetros de los pipelines JSON no cambian. Los helpers compartidos también
+deben migrarse a `NumericProcessor.absolute`. Los nombres de operación no cambian;
+en los pipelines JSON el booleano `new_column` se sustituye por `create_new_column`.
+Los helpers compartidos también
 pertenecen a los procesadores: `StructuralProcessor.resolve_output_column`,
 `StructuralProcessor.assign_result` y `RowProcessor.condition_mask`.
 
@@ -179,11 +180,10 @@ Las transformaciones de texto, numéricas, fechas, lógicas y `change_data_type`
 `start_column`. `drop_column` y `rename_column` son excepciones estructurales:
 eliminan o renombran, sin parámetros de creación de columna.
 
-Se mantienen los nombres antiguos y sus parámetros: `uppercase`, `lowercase`,
-`absolute`, `drop-column`, `rename-column`, `change-data-type`, `new_type` y
-`new_column`. Este último sigue generando nombres indexados como `City_1`; el
-parámetro nuevo genera `City_processed`. No se deben combinar controles contradictorios.
-Las extensiones antiguas `min` y `max` siguen requiriendo `new_column_name`.
+Se mantienen los nombres antiguos de operaciones: `uppercase`, `lowercase`,
+`absolute`, `drop-column`, `rename-column`, `change-data-type` y `new_type`.
+`create_new_column` es el único parámetro booleano para seleccionar una columna nueva.
+Las extensiones `min` y `max` siguen requiriendo `new_column_name`.
 
 ### Operaciones de tabla
 
@@ -243,8 +243,8 @@ Además de los controles de salida, aceptan:
 | `date_add`, `date_sub` | `column`, `unit`: `days`, `months`, `years`; `amount`: entero |
 | `date_diff` | `start_column`, `end_column`, `unit="days"`: `days`, `months`, `years` |
 | `extract_date_part` | `column`, `part`: `year`, `month`, `day`, `weekday` |
-| `date`, `datetime`, `float`, `int`, `str` | `column`, `replace=true`, `new_column_name` cuando `replace=false` |
-| `make_date` | `column_day`, `column_month`, `column_year`, `replace=false`, `new_column_name="date"` |
+| `date`, `datetime`, `float`, `int`, `str` | `column`, `create_new_column=false`, `new_column_name` cuando `create_new_column=true` |
+| `make_date` | `column_day`, `column_month`, `column_year`, `create_new_column=true`, `new_column_name="date"` |
 | `make_time` | `column_hour`, `column_minute`, `column_second`, `new_column_name="time"` |
 | `make_date_time` | `column_date`, `column_hour`, `new_column_name="datetime"` |
 | `coalesce`, `ifnull` | `column`, `default_value` |

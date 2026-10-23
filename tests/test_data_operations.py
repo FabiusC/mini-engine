@@ -136,10 +136,11 @@ def test_output_name_validation_and_collision_policy() -> None:
 		{"create_new_column": False, "new_column_name": "new"},
 		{"create_new_column": True, "new_column_name": ""},
 		{"create_new_column": "false"},
-		{"create_new_column": False, "new_column": True},
 	):
 		with pytest.raises(ValueError):
 			execute("upper", frame, column="v", **parameters)
+	with pytest.raises(TypeError, match="new_column"):
+		execute("upper", frame, column="v", create_new_column=False, new_column=True)
 
 
 def test_split_expands_without_mutation_or_column_overwrites() -> None:
@@ -339,7 +340,10 @@ def test_date_parts_support_iso_year_boundary(operation, expected) -> None:
 
 def test_date_trunc_supports_month_and_preserves_nulls() -> None:
 	frame = pd.DataFrame({"v": ["2024-02-29 12:34:56", None]})
-	result = execute("date_trunc", frame, column="v", part="month", replace=False, new_column_name="truncated")
+	result = execute(
+		"date_trunc", frame, column="v", part="month",
+		create_new_column=True, new_column_name="truncated",
+	)
 	assert result["truncated"].iloc[0] == pd.Timestamp("2024-02-01")
 	assert pd.isna(result["truncated"].iloc[1])
 	assert result["v"].iloc[0] == "2024-02-29 12:34:56"
@@ -349,7 +353,7 @@ def test_date_parse_coerces_invalid_values_and_can_create_a_column() -> None:
 	frame = pd.DataFrame({"v": ["2024-02-29", "invalid"]})
 	result = execute(
 		"date_parse", frame, column="v", date_format="%Y-%m-%d",
-		replace=False, new_column_name="parsed",
+		create_new_column=True, new_column_name="parsed",
 	)
 	assert result["parsed"].iloc[0] == pd.Timestamp("2024-02-29")
 	assert pd.isna(result["parsed"].iloc[1])
@@ -364,10 +368,18 @@ def test_date_add_and_diff_support_weeks_quarters_and_interval_aliases() -> None
 	assert diff["start"].iloc[0] == 1
 
 
+def test_date_add_rejects_the_legacy_replace_parameter() -> None:
+	with pytest.raises(TypeError, match="replace"):
+		execute(
+			"date_add", pd.DataFrame({"v": ["2024-01-01"]}),
+			column="v", unit="day", amount=1, replace=True,
+		)
+
+
 def test_today_and_now_generate_local_system_values() -> None:
 	frame = pd.DataFrame({"v": ["unused", "unused"]})
-	today = execute("today", frame, column="v", replace=False, new_column_name="today")
-	now = execute("now", frame, column="v", replace=False, new_column_name="now")
+	today = execute("today", frame, column="v", create_new_column=True, new_column_name="today")
+	now = execute("now", frame, column="v", create_new_column=True, new_column_name="now")
 	assert today["today"].dt.time.tolist() == [pd.Timestamp.today().normalize().time()] * 2
 	assert (now["now"].dt.normalize() == today["today"]).all()
 

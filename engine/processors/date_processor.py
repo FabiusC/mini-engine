@@ -39,21 +39,21 @@ class DateTimeProcessor:
 		df: pd.DataFrame,
 		source: str,
 		values: pd.Series,
-		replace: bool,
+		create_new_column: bool,
 		new_column_name: str | None,
 	) -> pd.DataFrame:
-		if not isinstance(replace, bool):
-			raise ValueError("replace must be a boolean")
-		if replace and new_column_name is not None:
-			raise ValueError("new_column_name requires replace to be false")
-		if not replace and not new_column_name:
-			raise ValueError("new_column_name is required when replace is false")
+		if not isinstance(create_new_column, bool):
+			raise ValueError("create_new_column must be a boolean")
+		if create_new_column and not new_column_name:
+			raise ValueError("new_column_name is required when create_new_column is true")
+		if not create_new_column and new_column_name is not None:
+			raise ValueError("new_column_name requires create_new_column to be true")
 		return StructuralProcessor().assign_result(
 			df,
 			source,
 			values,
-			create_new_column=not replace,
-			new_column_name=new_column_name if not replace else None,
+			create_new_column=create_new_column,
+			new_column_name=new_column_name if create_new_column else None,
 		)
 
 	def date_parser(
@@ -69,19 +69,19 @@ class DateTimeProcessor:
 		df: pd.DataFrame,
 		column: str,
 		date_format: str,
-		replace: bool = True,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Parse values matching a format; invalid values become NaT."""
 		values = pd.to_datetime(df[column], format=date_format, errors="coerce")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def date_trunc(
 		self,
 		df: pd.DataFrame,
 		column: str,
 		part: str,
-		replace: bool = True,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Truncate datetimes to the beginning of the requested calendar period."""
@@ -109,80 +109,80 @@ class DateTimeProcessor:
 			raise ValueError(
 				"part must be one of year, quarter, month, week, day, hour, minute or second"
 			)
-		return self._assign(df, column, truncated, replace, new_column_name)
+		return self._assign(df, column, truncated, create_new_column, new_column_name)
 
 	def day(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.day.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def iso_quarter(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return ISO-week-based quarter numbers, assigning week 53 to quarter 4."""
 		weeks = pd.to_datetime(df[column], errors="coerce").dt.isocalendar().week
 		values = (((weeks - 1) // 13) + 1).clip(upper=4).astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def iso_week(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.isocalendar().week.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def iso_week_day(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.isocalendar().day.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def iso_year(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.isocalendar().year.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def now(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.Series(pd.Timestamp.now().floor("s"), index=df.index)
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def quarter(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.quarter.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def today(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.Series(pd.Timestamp.today().normalize(), index=df.index)
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def week(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return weekday numbers with Monday as 0 and Sunday as 6."""
 		values = pd.to_datetime(df[column], errors="coerce").dt.dayofweek.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def year(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.year.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def date_add(
 		self,
@@ -194,7 +194,6 @@ class DateTimeProcessor:
 		*,
 		part: str | None = None,
 		interval: int | None = None,
-		replace: bool | None = None,
 	) -> pd.DataFrame:
 		"""Use calendar offsets for months/years, including month-end clipping."""
 		if part is not None:
@@ -218,14 +217,6 @@ class DateTimeProcessor:
 			normalized_unit = "months"
 			amount *= 3
 		values = pd.to_datetime(df[column], errors="raise") + pd.DateOffset(**{normalized_unit: amount})
-		if replace is not None:
-			if not isinstance(replace, bool):
-				raise ValueError("replace must be a boolean")
-			if replace and new_column_name is not None:
-				raise ValueError("new_column_name requires replace to be false")
-			if not replace and not new_column_name:
-				raise ValueError("new_column_name is required when replace is false")
-			create_new_column = not replace
 		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def date_sub(
@@ -286,18 +277,18 @@ class DateTimeProcessor:
 		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def month(
-		self, df: pd.DataFrame, column: str, replace: bool = True,
+		self, df: pd.DataFrame, column: str, create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], errors="coerce").dt.month.astype("Int64")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)
 
 	def date_name(
 		self,
 		df: pd.DataFrame,
 		column: str,
 		part: str,
-		replace: bool = True,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		dates = pd.to_datetime(df[column], errors="coerce")
@@ -317,4 +308,4 @@ class DateTimeProcessor:
 			values = dates.dt.quarter.astype("Int64").astype("string")
 		else:
 			raise ValueError("part must be month, weekday, year or quarter")
-		return self._assign(df, column, values, replace, new_column_name)
+		return self._assign(df, column, values, create_new_column, new_column_name)

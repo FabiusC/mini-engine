@@ -28,7 +28,8 @@ def test_conversions_create_columns_and_preserve_sources(operation, source, expe
 	frame = pd.DataFrame({"value": source})
 	before = frame.copy(deep=True)
 	result = execute(
-		operation, frame, column="value", replace=False, new_column_name="converted",
+		operation, frame, column="value",
+		create_new_column=True, new_column_name="converted",
 	)
 
 	assert result["converted"].tolist() == expected
@@ -62,7 +63,7 @@ def test_make_date_rejects_invalid_components_and_can_replace_day_column() -> No
 
 	result = execute(
 		"make_date", frame.iloc[:1], column_day="day", column_month="month",
-		column_year="year", replace=True,
+		column_year="year", create_new_column=False,
 	)
 	assert result["day"].iloc[0] == pd.Timestamp("2024-04-30")
 
@@ -96,3 +97,11 @@ def test_conversion_processor_is_exposed_on_pandas_aggregator() -> None:
 	from engine import PandasDataProcessor
 
 	assert isinstance(PandasDataProcessor().conversion, ConversionProcessor)
+
+
+def test_conversion_rejects_the_legacy_replace_parameter() -> None:
+	with pytest.raises(TypeError, match="replace"):
+		execute(
+			"float", pd.DataFrame({"value": ["1.5"]}),
+			column="value", replace=False, new_column_name="converted",
+		)

@@ -23,8 +23,7 @@ class StructuralProcessor:
 		new_type: str | None = None,
 		*,
 		target_type: str | None = None,
-		create_new_column: bool | None = None,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		"""Return a copy with the selected column cast to ``new_type``."""
@@ -34,7 +33,7 @@ class StructuralProcessor:
 		if dtype is None:
 			raise ValueError("target_type is required")
 		target = self.resolve_output_column(
-			df, column, new_column, new_column_name, create_new_column=create_new_column
+			df, column, create_new_column, new_column_name
 		)
 		result = df.copy()
 		result[target] = pd.to_datetime(df[column], errors="raise") if dtype == "datetime" else df[column].astype(dtype)
@@ -85,40 +84,29 @@ class StructuralProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> str:
-		"""Resolve modern processed names while retaining legacy indexed names."""
-		if create_new_column is not None:
-			if not isinstance(create_new_column, bool):
-				raise ValueError("create_new_column must be a boolean")
-			if new_column and not create_new_column:
-				raise ValueError("new_column and create_new_column must agree")
-			new_column = create_new_column
+		"""Resolve the source column or a new output column name."""
+		if not isinstance(create_new_column, bool):
+			raise ValueError("create_new_column must be a boolean")
 		if new_column_name is not None and (not isinstance(new_column_name, str) or not new_column_name):
 			raise ValueError("new_column_name must be a nonempty string")
-		if not new_column:
+		if not create_new_column:
 			if new_column_name is not None:
-				raise ValueError("new_column_name requires new_column to be true")
+				raise ValueError("new_column_name requires create_new_column to be true")
 			return column
 		if new_column_name is not None:
 			if new_column_name in df.columns:
 				raise ValueError(f"Column {new_column_name!r} already exists")
 			return new_column_name
-		if create_new_column:
-			base = f"{column}_processed"
-			target = base
-			index = 1
-			while target in df.columns:
-				target = f"{base}_{index}"
-				index += 1
-			return target
+		base = f"{column}_processed"
+		target = base
 		index = 1
-		while f"{column}_{index}" in df.columns:
+		while target in df.columns:
+			target = f"{base}_{index}"
 			index += 1
-		return f"{column}_{index}"
+		return target
 
 	def assign_result(
 		self,

@@ -20,16 +20,17 @@ def test_text_operation_updates_the_source_column_by_default() -> None:
 	assert frame["name"].iloc[0] == "Ana"
 
 
-def test_new_column_without_name_uses_the_next_free_index() -> None:
-	result = execute_operation("lowercase", [_frame()], column="name", new_column=True)
+def test_new_column_without_name_uses_the_next_free_processed_name() -> None:
+	result = execute_operation("lowercase", [_frame()], column="name", create_new_column=True)
 
-	assert result["name_2"].iloc[0] == "ana"
+	assert result["name_processed"].iloc[0] == "ana"
 	assert result["name"].iloc[0] == "Ana"
 
 
 def test_new_column_uses_the_requested_name() -> None:
 	result = execute_operation(
-		"uppercase", [_frame()], column="name", new_column=True, new_column_name="upper_name"
+		"uppercase", [_frame()], column="name",
+		create_new_column=True, new_column_name="upper_name",
 	)
 
 	assert result["upper_name"].iloc[0] == "ANA"
@@ -38,14 +39,19 @@ def test_new_column_uses_the_requested_name() -> None:
 @pytest.mark.parametrize(
 	"parameters, message",
 	[
-		({"new_column": True, "new_column_name": "name_1"}, "already exists"),
-		({"new_column": False, "new_column_name": "other"}, "requires new_column"),
+		({"create_new_column": True, "new_column_name": "name_1"}, "already exists"),
+		({"create_new_column": False, "new_column_name": "other"}, "requires create_new_column"),
 	],
 )
 def test_invalid_output_column_requests_are_rejected(parameters: dict, message: str) -> None:
 	arguments = {"column": "name", **parameters}
 	with pytest.raises(ValueError, match=message):
 		execute_operation("uppercase", [_frame()], **arguments)
+
+
+def test_legacy_new_column_parameter_is_not_supported() -> None:
+	with pytest.raises(TypeError, match="new_column"):
+		execute_operation("uppercase", [_frame()], column="name", new_column=True)
 
 
 def test_missing_source_column_uses_pandas_key_error() -> None:

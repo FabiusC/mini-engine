@@ -14,15 +14,13 @@ class NumericProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Return a copy with absolute values in the source or a new column."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").abs()
 		return result
@@ -31,15 +29,13 @@ class NumericProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Convert values to floats, replacing null or invalid values with zero."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		result[target] = (
 			pd.to_numeric(result[column], errors="coerce")
@@ -52,15 +48,13 @@ class NumericProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Return a copy with values rounded up in the source or a new column."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		numeric_values = pd.to_numeric(result[column], errors="raise")
 		result[target] = np.ceil(numeric_values)
@@ -116,15 +110,13 @@ class NumericProcessor:
 		self,
 		df: pd.DataFrame,
 		column: str,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Return a copy with values rounded down in the source or a new column."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		numeric_values = pd.to_numeric(result[column], errors="raise")
 		result[target] = np.floor(numeric_values)
@@ -135,15 +127,13 @@ class NumericProcessor:
 		df: pd.DataFrame,
 		column: str,
 		value: float,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Raise numeric values to ``value`` in the source or a new column."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").pow(value)
 		return result
@@ -153,15 +143,13 @@ class NumericProcessor:
 		df: pd.DataFrame,
 		column: str,
 		decimals: int = 0,
-		new_column: bool = False,
+		create_new_column: bool = False,
 		new_column_name: str | None = None,
-		*,
-		create_new_column: bool | None = None,
 	) -> pd.DataFrame:
 		"""Return a copy with rounded values in the source or a new column."""
 		result = df.copy()
 		target = StructuralProcessor().resolve_output_column(
-			result, column, new_column, new_column_name, create_new_column=create_new_column
+			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").round(decimals)
 		return result

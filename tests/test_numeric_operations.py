@@ -26,7 +26,7 @@ def test_numeric_operations_create_a_column_without_changing_source(
 		operation,
 		[frame],
 		column="value",
-		new_column=True,
+		create_new_column=True,
 		new_column_name="result",
 		**parameters,
 	)
@@ -93,7 +93,7 @@ def test_power_supports_a_new_output_column() -> None:
 		[frame],
 		column="value",
 		value=2,
-		new_column=True,
+		create_new_column=True,
 		new_column_name="squared",
 	)
 

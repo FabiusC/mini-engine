@@ -33,14 +33,14 @@
             "operation": {"name": "uppercase"},
             "input_ports": [{"id": "segment_upper_in", "ordinal": 0}],
             "output_ports": [{"id": "segment_upper_out", "ordinal": 0}],
-            "parameters": {"column": "Segment_south", "new_column": false}
+            "parameters": {"column": "Segment_south", "create_new_column": false}
         },
         {
             "id": "customer_lower",
             "operation": {"name": "lowercase"},
             "input_ports": [{"id": "customer_lower_in", "ordinal": 0}],
             "output_ports": [{"id": "customer_lower_out", "ordinal": 0}],
-            "parameters": {"column": "Customer Name_south", "new_column": true}
+            "parameters": {"column": "Customer Name_south", "create_new_column": true}
         },
         {
             "id": "city_upper",
@@ -49,7 +49,7 @@
             "output_ports": [{"id": "city_upper_out", "ordinal": 0}],
             "parameters": {
                 "column": "City_south",
-                "new_column": true,
+                "create_new_column": true,
                 "new_column_name": "city_south_upper"
             }
         },
@@ -60,7 +60,7 @@
             "output_ports": [{"id": "absolute_profit_out", "ordinal": 0}],
             "parameters": {
                 "column": "Profit_south",
-                "new_column": true,
+                "create_new_column": true,
                 "new_column_name": "profit_south_absolute"
             }
         },
@@ -71,7 +71,7 @@
             "output_ports": [{"id": "ceiling_sales_out", "ordinal": 0}],
             "parameters": {
                 "column": "Sales_south",
-                "new_column": true,
+                "create_new_column": true,
                 "new_column_name": "sales_south_ceiling"
             }
         },
@@ -80,7 +80,7 @@
             "operation": {"name": "floor"},
             "input_ports": [{"id": "floor_profit_in", "ordinal": 0}],
             "output_ports": [{"id": "floor_profit_out", "ordinal": 0}],
-            "parameters": {"column": "Profit_central", "new_column": false}
+            "parameters": {"column": "Profit_central", "create_new_column": false}
         },
         {
             "id": "round_sales",
@@ -90,7 +90,7 @@
             "parameters": {
                 "column": "Sales_central",
                 "decimals": 2,
-                "new_column": false
+                "create_new_column": false
             }
         },
         {
