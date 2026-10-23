@@ -417,6 +417,26 @@ def test_generic_join(how, rows) -> None:
 	assert len(result) == rows
 
 
+@pytest.mark.parametrize(
+	"operation, expected_ids",
+	[
+		("inner_join", [2]),
+		("outer_join", [1, 2, 3]),
+		("left_join", [1, 2]),
+		("right_join", [2, 3]),
+	],
+)
+def test_named_join_operations(operation, expected_ids) -> None:
+	left = pd.DataFrame({"id": [1, 2], "left_value": ["a", "b"]})
+	right = pd.DataFrame({"key": [2, 3], "right_value": ["x", "y"]})
+
+	result = execute(
+		operation, left, right, left_on="id", right_on="key",
+	)
+
+	assert result["id"].fillna(result["key"]).tolist() == expected_ids
+
+
 def test_union_by_name_and_position() -> None:
 	left = pd.DataFrame({"a": [1], "b": [2]})
 	right = pd.DataFrame({"b": [3], "a": [4]})

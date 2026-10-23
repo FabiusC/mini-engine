@@ -44,6 +44,7 @@ def test_operation_registry_routes_names_to_processor_functions() -> None:
 		("lowercase", TextProcessor, "lowercase"),
 		("date", ConversionProcessor, "date"),
 		("read_csv", IOProcessor, "read_csv"),
+		("sort", RowProcessor, "sort_rows"),
 	]:
 		function = get_operation(operation)
 		assert function.__self__.__class__ is processor

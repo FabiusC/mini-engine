@@ -96,8 +96,10 @@ OPERATION_PROCESSORS: dict[str, Operation] = {
 	"join": _structural.join,
 	"inner_join": partial(_structural.join, how="inner"),
 	"outer_join": partial(_structural.join, how="outer"),
+	"left_join": partial(_structural.join, how="left"),
+	"right_join": partial(_structural.join, how="right"),
 	"add_column": _structural.add_column,
-	"sort": _structural.sort_rows,
+	"sort": _row.sort_rows,
 	"drop-column": _structural.drop_column,
 	"drop_column": _structural.drop_column,
 	"rename-column": _structural.rename_column,
@@ -130,7 +132,7 @@ OPERATION_PROCESSORS: dict[str, Operation] = {
 
 _ZERO_INPUT_OPERATIONS = {"input", "read_csv"}
 _MULTI_INPUT_OPERATIONS = {"union"}
-_TWO_INPUT_OPERATIONS = {"join", "inner_join", "outer_join"}
+_TWO_INPUT_OPERATIONS = {"join", "inner_join", "outer_join", "left_join", "right_join"}
 
 
 def _require_inputs(operation: str, inputs: Sequence[pd.DataFrame], count: int) -> None:

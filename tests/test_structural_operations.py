@@ -44,12 +44,11 @@ def test_rename_column_and_change_data_type() -> None:
 @pytest.mark.parametrize(
 	"operation, parameters",
 	[
-		("sort", {"column": "missing"}),
 		("drop-column", {"column": "missing"}),
 		("change-data-type", {"column": "missing", "new_type": "str"}),
 	],
 )
-def test_structural_operations_rely_on_pandas_for_missing_columns(
+def test_sort_and_structural_operations_rely_on_pandas_for_missing_columns(
 	operation: str,
 	parameters: dict[str, str],
 ) -> None:
