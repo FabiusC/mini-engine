@@ -17,6 +17,8 @@ El diagrama de contexto que conecta el builder con la UI/API, Kafka y los worker
 de Kubernetes está en [docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md](docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
 El detalle de los módulos del repositorio y del flujo interno de generación de
 scripts está en [docs/REPOSITORY_FLOW.md](docs/REPOSITORY_FLOW.md).
+El detalle de cada clase y función que participa en la compilación está en
+[docs/CODEGEN_COMPONENTS.md](docs/CODEGEN_COMPONENTS.md).
 `merge_pipeline_clean` no se invoca automáticamente desde el CLI ni desde
 `build_artifact`: quien integra el builder debe entregar el pipeline normalizado.
 
