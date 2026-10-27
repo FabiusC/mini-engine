@@ -4,8 +4,9 @@ El proyecto permite **compilar un DAG a un artefacto ejecutable**, sin ejecutar
 operaciones ni leer datasets durante la generación:
 
 ```text
-nodes / edges / operations
-    → merge_pipeline_clean
+API responses / pipeline JSON
+    → (optional caller step) merge_pipeline_clean
+    → normalized pipeline JSON
     → build_plan (IR lógico y validaciones)
     → Emitter (pandas / Polars / PyArrow / PySpark)
     → main.py + manifest.json [+ pipeline.ipynb]
@@ -14,6 +15,10 @@ nodes / edges / operations
 
 El diagrama de contexto que conecta el builder con la UI/API, Kafka y los workers
 de Kubernetes está en [ARCHITECTURE_DAG_SCRIPT_BUILDER.md](ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
+El detalle de los módulos del repositorio y del flujo interno de generación de
+scripts está en [REPOSITORY_FLOW.md](REPOSITORY_FLOW.md).
+`merge_pipeline_clean` no se invoca automáticamente desde el CLI ni desde
+`build_artifact`: quien integra el builder debe entregar el pipeline normalizado.
 
 El worker no necesita instalar este proyecto ni tener nuestro catálogo de
 operaciones. El script generado incluye llamadas explícitas por nodo y **solo las
