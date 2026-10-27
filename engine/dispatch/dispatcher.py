@@ -16,8 +16,8 @@ class RuntimeProfile:
 	command: tuple[str, ...] = ("python",)
 
 	def __post_init__(self) -> None:
-		expected = ("spark-submit",) if self.framework == "pyspark" else ("python",)
-		if self.framework not in ("pandas", "polars", "pyarrow", "pyspark") or self.command != expected or not self.image:
+		expected = ("python",)
+		if self.framework not in ("pandas", "polars") or self.command != expected or not self.image:
 			raise ValueError("Invalid approved runtime profile")
 
 

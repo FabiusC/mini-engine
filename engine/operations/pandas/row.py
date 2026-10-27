@@ -3,7 +3,7 @@
 import pandas as pd
 
 
-class RowProcessor:
+class RowOperations:
 	"""Stateless row operations for dataframe pipelines."""
 
 	def condition_mask(self, series: pd.Series, operator: str, value: object = None) -> pd.Series:

@@ -27,7 +27,7 @@ def execute(
 		manifest = load_manifest(store, request)
 		target = manifest.get("target", {})
 		framework = target.get("framework")
-		if framework not in ("pandas", "polars", "pyarrow", "pyspark") or target.get("engine") != "python":
+		if framework not in ("pandas", "polars") or target.get("engine") != "python":
 			raise ValueError("Unsupported worker runtime")
 		if target.get("runtime_profile") != runtime_profile or runtime_profile != f"python-{framework}-v1":
 			raise ValueError("Worker runtime does not match the artifact")
@@ -39,9 +39,8 @@ def execute(
 				(path / name).write_bytes(content)
 			(path / "params.json").write_text(json.dumps(request.parameters, allow_nan=False))
 			(path / "datasources.json").write_text(json.dumps(request.datasources))
-			executable = "spark-submit" if framework == "pyspark" else "python"
 			command = [
-				executable, str(path / "main.py"), "--params-file", str(path / "params.json"),
+				"python", str(path / "main.py"), "--params-file", str(path / "params.json"),
 			]
 			if request.datasources:
 				command += ["--datasources-file", str(path / "datasources.json")]

@@ -117,7 +117,7 @@ def test_api_responses_compile_through_cleaner_without_executing_data(tmp_path):
 
 @pytest.mark.parametrize("operation,parameters,inputs", [
 	("unknown", {}, 1),
-	("uppercase", {"column": "a"}, 1),
+	("uppercase", {}, 1),
 	("read_csv", {"filepath": "a"}, 1),
 	("join", {}, 1),
 	("union", {}, 1),
@@ -320,8 +320,8 @@ def test_io_formats_and_append_match_runner(tmp_path, file_type, mode):
 		generated = module.run(base_dir=actual_dir)
 		for node_id in reference:
 			assert_frame_equal(generated[node_id], reference[node_id])
-	from engine.processors.io_processor import IOProcessor
-	io = IOProcessor()
+	from engine.operations.pandas.io import IOOperations
+	io = IOOperations()
 	assert_frame_equal(
 		io.input_data(file_type, actual_dir / ("out" + suffix), encoding="latin1", delimiter=";"),
 		io.input_data(file_type, expected_dir / ("out" + suffix), encoding="latin1", delimiter=";"),
@@ -461,8 +461,10 @@ def test_literals_cannot_inject_code_and_only_used_helpers_are_bundled(tmp_path)
 		isinstance(item, ast.ImportFrom) and (item.module or "").startswith("engine")
 		for item in ast.walk(tree)
 	)
-	assert "_StructuralProcessor_add_column" in source
-	assert "_StructuralProcessor_join" not in source
+	assert "engine.processors" not in source
+	assert "engine.operations" not in source
+	assert "_StructuralOperations_add_column" in source
+	assert "_StructuralOperations_join" not in source
 	assert "execute_operation" not in source
 
 
@@ -607,7 +609,9 @@ def test_catalog_is_backend_independent():
 	code = (
 		"import sys; from engine.ir import build_plan; "
 		"assert 'pandas' not in sys.modules; "
-		"assert 'engine.core.operation_registry' not in sys.modules"
+		"assert 'engine.core.operation_registry' not in sys.modules; "
+		"assert 'engine.operations' not in sys.modules; "
+		"assert 'engine.processors' not in sys.modules"
 	)
 	subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True)
 	for canonical in ALIASES.values():

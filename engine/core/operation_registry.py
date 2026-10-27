@@ -1,4 +1,4 @@
-"""Map pipeline operation names directly to concrete processor methods."""
+"""Map pipeline operation names directly to pandas operation implementations."""
 
 from collections.abc import Mapping, Sequence
 from functools import partial
@@ -6,27 +6,29 @@ from typing import Any, Callable
 
 import pandas as pd
 
-from engine.processors.conversion_processor import ConversionProcessor
-from engine.processors.date_processor import DateTimeProcessor
-from engine.processors.io_processor import IOProcessor
-from engine.processors.logical_processor import LogicalProcessor
-from engine.processors.numeric_processor import NumericProcessor
-from engine.processors.row_processor import RowProcessor
-from engine.processors.structural_processor import StructuralProcessor
-from engine.processors.text_processor import TextProcessor
+from engine.operations.pandas import (
+	ConversionOperations,
+	DateTimeOperations,
+	IOOperations,
+	LogicalOperations,
+	NumericOperations,
+	RowOperations,
+	StructuralOperations,
+	TextOperations,
+)
 
 Operation = Callable[..., pd.DataFrame]
 
-_conversion = ConversionProcessor()
-_date_time = DateTimeProcessor()
-_io = IOProcessor()
-_logical = LogicalProcessor()
-_numeric = NumericProcessor()
-_row = RowProcessor()
-_structural = StructuralProcessor()
-_text = TextProcessor()
+_conversion = ConversionOperations()
+_date_time = DateTimeOperations()
+_io = IOOperations()
+_logical = LogicalOperations()
+_numeric = NumericOperations()
+_row = RowOperations()
+_structural = StructuralOperations()
+_text = TextOperations()
 
-OPERATION_PROCESSORS: dict[str, Operation] = {
+OPERATION_FUNCTIONS: dict[str, Operation] = {
 	"input": _io.input_data,
 	"output": _io.output_data,
 	"read_csv": _io.read_csv,
@@ -144,9 +146,9 @@ def _require_inputs(operation: str, inputs: Sequence[pd.DataFrame], count: int) 
 
 
 def get_operation(operation: str) -> Operation:
-	"""Return the concrete processor method for a pipeline operation name."""
+	"""Return the concrete pandas operation for a pipeline operation name."""
 	try:
-		return OPERATION_PROCESSORS[operation.lower()]
+		return OPERATION_FUNCTIONS[operation.lower()]
 	except KeyError as error:
 		raise ValueError(f"Unsupported operation {operation!r}") from error
 

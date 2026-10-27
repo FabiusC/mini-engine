@@ -12,24 +12,46 @@ from engine.ir.plan import ExecutionPlan
 from engine.ir.validate import parameter_reference, validate_constraints, validate_value
 from engine.ir.targets import validate_target_parameters
 from engine.ir.expressions import render_expression
-from engine.processors.date_processor import DateTimeProcessor
-from engine.processors.logical_processor import LogicalProcessor
-from engine.processors.io_processor import IOProcessor
-from engine.processors.row_processor import RowProcessor
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas import (
+	ConversionOperations,
+	DateTimeOperations,
+	IOOperations,
+	LogicalOperations,
+	NumericOperations,
+	RowOperations,
+	StructuralOperations,
+	TextOperations,
+)
 
 
 _IMPLEMENTATIONS: dict[str, tuple[type, str]] = {
-	"input": (IOProcessor, "input_data"),
-	"output": (IOProcessor, "output_data"),
-	"read_csv": (IOProcessor, "read_csv"),
-	"write_csv": (IOProcessor, "write_csv"),
-	"filter": (RowProcessor, "filter_rows"),
-	"limit": (RowProcessor, "limit_rows"),
-	"sort": (RowProcessor, "sort_rows"),
-	"sample": (RowProcessor, "sample"),
+	"input": (IOOperations, "input_data"),
+	"output": (IOOperations, "output_data"),
+	"read_csv": (IOOperations, "read_csv"),
+	"write_csv": (IOOperations, "write_csv"),
+	"filter": (RowOperations, "filter_rows"),
+	"limit": (RowOperations, "limit_rows"),
+	"sort": (RowOperations, "sort_rows"),
+	"sample": (RowOperations, "sample"),
 	**{
-		name: (StructuralProcessor, name)
+		name: (ConversionOperations, name)
+		for name in ("date", "datetime", "float", "int", "str", "make_date", "make_time", "make_date_time")
+	},
+	**{
+		name: (NumericOperations, name)
+		for name in ("absolute", "clean_float", "ceiling", "floor", "max", "min", "power", "arithmetic")
+	},
+	"round": (NumericOperations, "round_column"),
+	**{
+		name: (TextOperations, name)
+		for name in (
+			"lowercase", "uppercase", "proper", "propper", "trim", "ltrim", "rtrim",
+			"substring", "replace", "split", "concat_column", "concat_text", "contains",
+			"starts_with", "ends_with", "transform_left", "transform_right", "length",
+		)
+	},
+	**{
+		name: (StructuralOperations, name)
 		for name in (
 			"join", "union", "add_column", "drop_column", "rename_column",
 			"change_data_type", "aggregate", "pivot",
@@ -41,10 +63,16 @@ for _name in (
 	"iso_quarter", "iso_week", "iso_week_day", "iso_year", "now", "today", "date_add",
 	"date_sub", "date_diff", "date_name", "extract_date_part",
 ):
-	_IMPLEMENTATIONS[_name] = (DateTimeProcessor, _name)
+	_IMPLEMENTATIONS[_name] = (DateTimeOperations, _name)
 for _name in ("logical", "coalesce", "conditional_map"):
-	_IMPLEMENTATIONS[_name] = (LogicalProcessor, _name)
-_OWNERS = {owner.__name__: owner for owner in (IOProcessor, RowProcessor, StructuralProcessor, DateTimeProcessor, LogicalProcessor)}
+	_IMPLEMENTATIONS[_name] = (LogicalOperations, _name)
+_OWNERS = {
+	owner.__name__: owner
+	for owner in (
+		ConversionOperations, DateTimeOperations, IOOperations, LogicalOperations,
+		NumericOperations, RowOperations, StructuralOperations, TextOperations,
+	)
+}
 
 
 def _function_name(owner: type, method: str) -> str:
@@ -74,7 +102,7 @@ class _MethodToFunction(ast.NodeTransformer):
 
 
 def _helper_sources(methods: set[tuple[type, str]]) -> list[str]:
-	"""Lower trusted processor methods to free functions, including self-call dependencies."""
+	"""Lower trusted pandas operation methods to functions and include their dependencies."""
 	pending = set(methods)
 	sources: dict[str, str] = {}
 	while pending:
@@ -86,7 +114,7 @@ def _helper_sources(methods: set[tuple[type, str]]) -> list[str]:
 		tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(owner, method))))
 		function = tree.body[0]
 		if not isinstance(function, ast.FunctionDef) or function.args.args[0].arg != "self":
-			raise ValueError(f"Cannot emit processor method {owner.__name__}.{method}")
+			raise ValueError(f"Cannot emit pandas operation {owner.__name__}.{method}")
 		function.name = name
 		function.args.args.pop(0)
 		transformer = _MethodToFunction(owner)
@@ -107,9 +135,13 @@ class PandasEmitter:
 	engine = "python"
 	framework = "pandas"
 	implementations = _IMPLEMENTATIONS
-	backend_imports = "import pandas as pd\nfrom pandas.api.types import is_bool_dtype\nimport operator\nimport re"
+	backend_imports = (
+		"import pandas as pd\nimport numpy as np\n"
+		"from pandas.api.types import is_bool_dtype\n"
+		"from datetime import time\nimport operator\nimport re"
+	)
 	frame_type = "pd.DataFrame"
-	reader = (IOProcessor, "read_csv")
+	reader = (IOOperations, "read_csv")
 	stats: Callable[..., Any] | None = None
 
 	def emit(self, plan: ExecutionPlan) -> str:

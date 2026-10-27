@@ -2,10 +2,10 @@
 
 import pandas as pd
 
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas.structural import StructuralOperations
 
 
-class DateTimeProcessor:
+class DateTimeOperations:
 	"""Stateless datetime operations for dataframe pipelines."""
 
 	_DATE_UNITS = {
@@ -48,7 +48,7 @@ class DateTimeProcessor:
 			raise ValueError("new_column_name is required when create_new_column is true")
 		if not create_new_column and new_column_name is not None:
 			raise ValueError("new_column_name requires create_new_column to be true")
-		return StructuralProcessor().assign_result(
+		return StructuralOperations().assign_result(
 			df,
 			source,
 			values,
@@ -62,7 +62,7 @@ class DateTimeProcessor:
 		create_new_column: bool = False, new_column_name: str | None = None,
 	) -> pd.DataFrame:
 		values = pd.to_datetime(df[column], format=date_format, errors="raise")
-		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def date_parse(
 		self,
@@ -217,7 +217,7 @@ class DateTimeProcessor:
 			normalized_unit = "months"
 			amount *= 3
 		values = pd.to_datetime(df[column], errors="raise") + pd.DateOffset(**{normalized_unit: amount})
-		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def date_sub(
 		self,
@@ -264,7 +264,7 @@ class DateTimeProcessor:
 			elif unit.lower() in ("quarter", "quarters"):
 				values = values // 3
 			values = values.where(~negative, -values).where(start.notna() & end.notna())
-		return StructuralProcessor().assign_result(df, start_column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, start_column, values, create_new_column, new_column_name)
 
 	def extract_date_part(
 		self,
@@ -274,7 +274,7 @@ class DateTimeProcessor:
 		if part not in ("year", "month", "day", "weekday"):
 			raise ValueError("part must be 'year', 'month', 'day' or 'weekday'")
 		values = getattr(pd.to_datetime(df[column], errors="raise").dt, part)
-		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def month(
 		self, df: pd.DataFrame, column: str, create_new_column: bool = False,

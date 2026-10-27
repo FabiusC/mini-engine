@@ -8,7 +8,7 @@ API responses / pipeline JSON
     → (optional caller step) merge_pipeline_clean
     → normalized pipeline JSON
     → build_plan (IR lógico y validaciones)
-    → Emitter (pandas / Polars / PyArrow / PySpark)
+    → Emitter (pandas / Polars)
     → main.py + manifest.json [+ pipeline.ipynb]
     → solicitud de ejecución → dispatcher → worker del perfil aprobado
 ```
@@ -34,7 +34,7 @@ procesa texto del DAG como código Python ni se usa `eval`.
 de `main.py` se mantienen solo como referencia para tests y debug local.
 Los scripts no requieren este repositorio. El launcher opcional del worker usa
 únicamente `engine/dispatch`, el validador de esquemas y los inicializadores de
-paquete; no importa el catálogo, los emitters ni nuestros processors.
+paquete; no importa el catálogo, los emitters ni nuestras operaciones pandas.
 
 ## Compilar y ejecutar
 
@@ -66,18 +66,8 @@ python main.py dag/pipeline_codegen.json \
   --framework polars --notebook
 ```
 
-También se aceptan `--framework pyarrow` y `--framework pyspark`. Todos usan
-`--engine python`. La compilación no importa ni ejecuta los runtimes opcionales;
-deben estar instalados en el entorno que ejecuta el artefacto.
-PySpark se inicia con `spark-submit`, no con un worker pandas:
-
-```bash
-spark-submit --master 'local[1]' /tmp/orders-v1-spark/main.py \
-  --params-file /tmp/orders-params.json
-```
-
-La ruta del ejemplo Spark presupone haber generado ese artefacto con
-`--framework pyspark`.
+Los únicos frameworks de generación disponibles son `pandas` y `polars`.
+Polars se instala en la imagen worker que ejecutará el artefacto.
 
 El directorio de salida **no debe existir**: los artefactos publicados no se
 sobrescriben. Usa otra ruta para una nueva compilación. También se puede compilar
@@ -185,40 +175,31 @@ formatos compatibles con el destino.
 | Structural | `add_column`, `drop_column`, `rename_column`, `change_data_type`, `join`, `union`, `aggregate`, `pivot` |
 | Row | `filter`, `limit`, `sort`, `sample` |
 | Expresiones | `fx` / `function` |
-| Logical (pandas) | `logical`, `and`, `or`, `not`, `if`, `elseif`, `case`, `coalesce` / `ifnull`, `conditional_map` |
-| Date (pandas) | `date_parser`, `date_parse`, `date_trunc`, `day`, `month`, `year`, `week`, `quarter`, `iso_quarter`, `iso_week`, `iso_week_day`, `iso_year`, `now`, `today`, `date_add`, `date_sub`, `date_diff`, `date_name`, `extract_date_part` |
+| Conversion | `date`, `datetime`, `float`, `int`, `str`, `make_date`, `make_time`, `make_date_time` |
+| Numeric | `absolute`, `clean_float`, `ceiling`, `floor`, `max`, `min`, `power`, `round`, `arithmetic` |
+| Text | `lowercase`, `uppercase`, `proper`, `trim`, `substring`, `replace`, `split`, `concat_column`, `concat_text`, `contains`, `starts_with`, `ends_with`, `transform_left`, `transform_right`, `length` |
+| Logical | `logical`, `and`, `or`, `not`, `if`, `elseif`, `case`, `coalesce` / `ifnull`, `conditional_map` |
+| Date | `date_parser`, `date_parse`, `date_trunc`, `day`, `month`, `year`, `week`, `quarter`, `iso_quarter`, `iso_week`, `iso_week_day`, `iso_year`, `now`, `today`, `date_add`, `date_sub`, `date_diff`, `date_name`, `extract_date_part` |
 
 Se conservan los aliases `drop-column`, `rename-column`, `change-data-type`,
 `inner_join`, `outer_join`, `left_join` y `right_join`; se normalizan en el IR.
 Para muestreos reproducibles usa `random_state`. La matriz por destino está en
-`engine.ir.catalog.compatibility_matrix()`:
+`engine.ir.catalog.compatibility_matrix()` garantiza que cada operación
+canónica está disponible en ambos backends:
 
-| Operaciones | pandas | Polars | PyArrow | PySpark |
-|---|---|---|---|---|
-| IO CSV/Parquet, add/drop/rename, filter/limit/sort, union | Sí | Sí | Sí | Sí |
-| IO Excel/SQL, append | Sí | No | No | No |
-| join, change_data_type | Sí | Sí | No | Sí |
-| aggregate, pivot, sample | Sí | No | No | No |
-| fx (incluye lógica y extracción de fechas) | Sí | Sí | No | Sí |
-| year/month/day | Sí | Sí | No | Sí |
-| Demás nodos lógicos históricos y fechas | Sí | No | No | No |
+| Operaciones del catálogo | pandas | Polars |
+|---|---|---|
+| Todas las operaciones canónicas | Sí | Sí |
 
-No se convierten datasets a pandas para simular una operación en otro destino.
-Las combinaciones no soportadas se rechazan al compilar. Las restricciones sobre
-parámetros dinámicos se vuelven a comprobar antes de ejecutar los nodos:
+Las operaciones Polars son nativas: no se convierten datasets a pandas. Algunas
+opciones de IO tienen restricciones propias del backend y se validan al compilar
+y de nuevo antes de ejecutar:
 
-- IO nativo: UTF-8, delimitador de un carácter, CSV/Parquet y overwrite.
-- Joins nativos: claves explícitas con el mismo nombre en ambos lados,
-  sufijos predeterminados `_x`/`_y`, inner/left/right/outer y coincidencia de nulls.
-- Cast nativo: int/int64, float/float64, str/string, bool y datetime.
-- Los destinos nativos no tienen índice pandas: se rechaza `write_csv(index=True)`.
-- Spark escribe **directorios** con part-files, no un único CSV/Parquet.
-- Spark no garantiza orden de filas sin `sort`. No se promete igualdad universal
-  de tipos, NaN, nulos, booleanos o parsing de fechas entre frameworks: se utilizan
-  sus semánticas nativas. Las pruebas comparan resultados para contratos comunes.
-- Spark 4 requiere Java >=17. Master, credenciales, conectores, timezone y
-  configuración de executors pertenecen a la imagen/perfil de ejecución.
-  Los contadores CLI de Spark ejecutan acciones; no se añade caching implícito.
+- IO Polars: CSV/Parquet, UTF-8 y delimitador de un carácter; Excel y SQL son
+  opciones exclusivas del backend Pandas.
+- Polars conserva las transformaciones y validaciones comunes; los resultados
+  siguen la semántica nativa de Polars para tipos, nulos, fechas y agregaciones.
+- Polars no tiene índice pandas: se rechaza `write_csv(index=True)`.
 
 ## AST de expresiones y notebooks
 
@@ -312,9 +293,8 @@ comando proporcionados por el mensaje. Ejemplo de registro JSON:
 }
 ```
 
-En producción fija imágenes por digest. Para Spark usa framework `pyspark` y
-command `["spark-submit"]`. El comando del perfil es una validación de contrato;
-el launcher selecciona su ejecutable desde el framework, no desde el manifest.
+En producción fija imágenes por digest. Los perfiles Pandas y Polars usan
+`python`; el comando del perfil es una validación de contrato.
 
 Guardar ese registro como `/tmp/profiles.json` permite preparar un Job sin enviarlo:
 
@@ -332,9 +312,11 @@ de datos/resultados. Las rutas del request deben existir **dentro del pod**. El
 ejemplo de parámetros anterior usa rutas del workspace y hay que adaptarlas a esos
 montajes. `Dispatcher(..., worker_secret_name="worker-kafka")` añade un Secret por
 `envFrom` para la configuración externa. La imagen necesita el launcher y sus
-dependencias mínimas, además del framework. No necesita los processors ni emitters.
+dependencias mínimas, además del framework. No necesita las operaciones pandas ni
+los emitters.
 El Job no crea por sí mismo un cluster Spark: el perfil/imagen debe configurar
-`spark-submit` para enviar al cluster; este código no instala Spark Operator.
+El Job generado no crea recursos de Kubernetes por sí solo; el callback de
+integración es quien entrega el Job a Kubernetes.
 
 Para publicación real, instala las dependencias opcionales e inyecta la configuración:
 
@@ -394,13 +376,12 @@ el script desde un directorio donde el paquete `engine` no está disponible:
 
 ```bash
 python -m pytest -q tests/test_script_builder.py tests/test_pipeline_runner.py
-python -m pytest -q tests/test_native_codegen.py tests/test_dispatch.py
+python -m pytest -q tests/test_polars_codegen.py tests/test_dispatch.py
 ```
 
-Las pruebas nativas usan Polars/PyArrow reales, Spark `local[1]`, `spark-submit`,
-un notebook ejecutado con Jupyter y Kafka simulado sin broker. Instala
-`requirements-workers.txt` para ejecutarlas todas; las pruebas que requieren
-runtimes opcionales se omiten si faltan. Java debe estar disponible para Spark.
+Las pruebas de Polars usan el runtime real; otras pruebas pueden requerir
+notebook/Jupyter o Kafka simulado, sin necesitar broker ni cluster Kubernetes.
+Instala `requirements-workers.txt` para ejecutar todas las pruebas.
 
 ## DAG JSON normalizado
 
@@ -464,9 +445,9 @@ El pipeline previo de lectura, join, operaciones de texto y transformaciones
 numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
 
 `PipelineRunner` ordena los nodos por sus aristas y busca cada operación en
-`engine/core/operation_registry.py`, que la dirige directamente al método estático del
-procesador concreto. El registro de operaciones es la única fachada del runner;
-las implementaciones funcionales están agrupadas en `engine/processors/`:
+`engine/core/operation_registry.py`, que la dirige al método correspondiente de
+`engine/operations/pandas/`. El registro es la fachada de ejecución local y las
+implementaciones pandas también son la fuente de helpers que extrae el emitter:
 
 | Categoría | Operaciones | Parámetros |
 |---|---|---|
@@ -494,12 +475,19 @@ python main.py dag/pipeline.json --output-dir /tmp/structural-pandas \
   --pipeline-id structural --pipeline-version 1
 ```
 
-## Implementaciones de referencia
+## Implementaciones pandas
 
-Las clases de `engine/processors/` contienen implementaciones confiables que usa
-el compilador para emitir helpers al script destino. `PipelineRunner` y
-`operation_registry` se conservan exclusivamente para pruebas y debug local; no
-forman parte del worker ni del contrato de ejecución. No existe un agregador
+Las clases `*Operations` de `engine/operations/pandas/` contienen las
+implementaciones pandas. Polars tiene su implementación completa y segmentada en
+`engine/operations/polars/`; una prueba de paridad compara su superficie con el
+catálogo y los dos emitters. `PandasEmitter`
+extrae de ellas únicamente los helpers requeridos y los serializa como funciones
+independientes en el script
+generado; el script no importa `engine.operations` ni depende de este repositorio.
+`PipelineRunner` y `operation_registry` se conservan exclusivamente para pruebas
+y debug local; no forman parte del worker ni del contrato de ejecución. El runner
+ejecuta las implementaciones Python directamente, mientras que los tests del
+emitter validan la extracción y generación del artefacto. No existe un agregador
 `PandasDataProcessor`: el artefacto generado es la interfaz que recibe el worker.
 
 Las transformaciones no modifican los DataFrames de entrada, de modo que las ramas

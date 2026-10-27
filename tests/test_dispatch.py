@@ -288,7 +288,7 @@ def test_launcher_imports_no_backend_or_operation_catalog():
 		sys.executable, "-c",
 		"import sys; import engine.dispatch.worker; "
 		"assert not any(x in sys.modules for x in "
-		"('pandas', 'polars', 'pyspark', 'engine.ir.catalog', 'engine.codegen', 'confluent_kafka'))",
+		"('pandas', 'polars', 'pyarrow', 'pyspark', 'engine.ir.catalog', 'engine.codegen', 'confluent_kafka'))",
 	], cwd=ROOT, check=True)
 
 

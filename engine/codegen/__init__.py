@@ -2,6 +2,6 @@
 
 from engine.codegen.builder import build_artifact
 from engine.codegen.pandas import PandasEmitter
-from engine.codegen.native import PolarsEmitter, PyArrowEmitter, PySparkEmitter
+from engine.codegen.polars import PolarsEmitter
 
-__all__ = ["PandasEmitter", "PolarsEmitter", "PyArrowEmitter", "PySparkEmitter", "build_artifact"]
+__all__ = ["PandasEmitter", "PolarsEmitter", "build_artifact"]

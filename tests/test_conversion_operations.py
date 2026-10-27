@@ -7,9 +7,6 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from engine.core.operation_registry import execute_operation
-from engine.processors.conversion_processor import ConversionProcessor
-
-
 def execute(operation: str, frame: pd.DataFrame, **parameters) -> pd.DataFrame:
 	return execute_operation(operation, [frame], **parameters)
 

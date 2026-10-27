@@ -8,11 +8,11 @@ import re
 import pandas as pd
 from pandas.api.types import is_bool_dtype
 
-from engine.processors.row_processor import RowProcessor
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas.row import RowOperations
+from engine.operations.pandas.structural import StructuralOperations
 
 
-class LogicalProcessor:
+class LogicalOperations:
 	"""Stateless logical operations for dataframe pipelines."""
 
 	_CONDITION_PATTERN = re.compile(
@@ -50,7 +50,7 @@ class LogicalProcessor:
 				value = raw_value
 			if not isinstance(value, (str, int, float, bool, type(None))):
 				raise ValueError("Condition value must be a scalar literal")
-		return RowProcessor().condition_mask(df[column], operator, value), operator
+		return RowOperations().condition_mask(df[column], operator, value), operator
 
 	def logical(
 		self,
@@ -92,7 +92,7 @@ class LogicalProcessor:
 			second_mask, _ = self._parse_condition(df, column, sentencia2)
 			values = operators[operation](first_mask, second_mask.fillna(False))
 
-		return StructuralProcessor().assign_result(
+		return StructuralOperations().assign_result(
 			df,
 			column,
 			values.astype(bool),
@@ -109,7 +109,7 @@ class LogicalProcessor:
 		values = df[column].replace("", None)
 		if default_value is not None:
 			values = values.fillna(default_value)
-		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column, values, create_new_column, new_column_name)
 
 	def conditional_map(
 		self,
@@ -128,7 +128,7 @@ class LogicalProcessor:
 			operator = condition_func["operator"]
 			if not isinstance(operator, str):
 				raise ValueError("condition operator must be a string")
-			mask = RowProcessor().condition_mask(df[column], operator, condition_func.get("value"))
+			mask = RowOperations().condition_mask(df[column], operator, condition_func.get("value"))
 		elif callable(condition_func):
 			mask = condition_func(df[column].copy())
 		else:
@@ -136,4 +136,4 @@ class LogicalProcessor:
 		if not isinstance(mask, pd.Series) or not mask.index.equals(df.index) or not is_bool_dtype(mask.dtype):
 			raise ValueError("condition_func must return a boolean Series with the input index")
 		values = pd.Series(true_value, index=df.index).where(mask.fillna(False), false_value)
-		return StructuralProcessor().assign_result(df, column, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column, values, create_new_column, new_column_name)

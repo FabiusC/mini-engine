@@ -4,10 +4,10 @@ import numpy as np
 
 import pandas as pd
 
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas.structural import StructuralOperations
 
 
-class NumericProcessor:
+class NumericOperations:
 	"""Stateless numeric operations for dataframe pipelines."""
 
 	def absolute(
@@ -19,7 +19,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Return a copy with absolute values in the source or a new column."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").abs()
@@ -34,7 +34,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Convert values to floats, replacing null or invalid values with zero."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		result[target] = (
@@ -53,7 +53,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Return a copy with values rounded up in the source or a new column."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		numeric_values = pd.to_numeric(result[column], errors="raise")
@@ -115,7 +115,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Return a copy with values rounded down in the source or a new column."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		numeric_values = pd.to_numeric(result[column], errors="raise")
@@ -132,7 +132,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Raise numeric values to ``value`` in the source or a new column."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").pow(value)
@@ -148,7 +148,7 @@ class NumericProcessor:
 	) -> pd.DataFrame:
 		"""Return a copy with rounded values in the source or a new column."""
 		result = df.copy()
-		target = StructuralProcessor().resolve_output_column(
+		target = StructuralOperations().resolve_output_column(
 			result, column, create_new_column, new_column_name
 		)
 		result[target] = pd.to_numeric(result[column], errors="raise").round(decimals)
@@ -178,4 +178,4 @@ class NumericProcessor:
 			values = left.div(right)
 		else:
 			raise ValueError(f"Unsupported arithmetic operator: {operator!r}")
-		return StructuralProcessor().assign_result(df, column_a, values, create_new_column, new_column_name)
+		return StructuralOperations().assign_result(df, column_a, values, create_new_column, new_column_name)

@@ -6,6 +6,12 @@ de DataIntegration/Manager. El paquete `engine.dispatch` aporta contratos y
 adaptadores reutilizables para la integración con Kafka y Kubernetes; no es por
 sí mismo el servicio Job Dispatcher.
 
+La captura de endpoints y el paso API → cleaner → builder requieren integración
+del caller: este repositorio no realiza llamadas HTTP ni ejecuta
+`merge_pipeline_clean` automáticamente desde la CLI. `Dispatcher.prepare()`
+crea un Job spec, pero la integración con Kubernetes debe someterlo mediante un
+callback externo.
+
 ```mermaid
 flowchart LR
     subgraph USERS["Usuarios y definición del pipeline"]
@@ -30,7 +36,7 @@ flowchart LR
             CLEAN["pipeline_clean<br/>normalizar nodes, edges, operations"]
             VALIDATE["IR + validación"]
             TOPOLOGY["Validación topológica<br/>orden de nodos"]
-            EMIT["Emitter<br/>pandas · Polars · PyArrow · PySpark"]
+            EMIT["Emitter<br/>pandas · Polars"]
             ARTIFACT["Artefacto ejecutable<br/>main.py + manifest.json"]
             CLEAN -->|"pipeline normalizado"| VALIDATE
             VALIDATE -->|"plan validado"| TOPOLOGY

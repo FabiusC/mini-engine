@@ -44,25 +44,25 @@ flowchart LR
     end
 
     subgraph EMISSION["Emisión · engine.codegen"]
-        REGISTRY["codegen.registry.EMITTERS<br/><b>Selecciona clase emitter</b><br/>según framework: pandas, polars,<br/>pyarrow o pyspark."]
+        REGISTRY["codegen.registry.EMITTERS<br/><b>Selecciona clase emitter</b><br/>pandas o polars."]
         PANDAS["PandasEmitter.emit(plan)<br/><b>Genera módulo standalone</b>: imports,<br/>validación runtime, run() y CLI."]
-        NATIVE["PolarsEmitter / PyArrowEmitter / PySparkEmitter<br/><b>Especializan</b> mapping, imports,<br/>tipo de frame y operaciones nativas."]
+        NATIVE["PolarsEmitter<br/><b>Especializa</b> mapping, imports,<br/>tipo de frame y operaciones Polars."]
         FX_RENDER["expressions.render_expression()<br/><b>Traduce AST</b> a expresiones nativas<br/>del framework seleccionado."]
-        PROCESSOR_AST["pandas._helper_sources()<br/>_MethodToFunction<br/><b>Extraen helpers necesarios</b> de processors;<br/>eliminan self y copian dependencias recursivas."]
-        NATIVE_OPS["codegen.native_ops<br/>PolarsOps / ArrowOps / SparkOps<br/><b>Implementan</b> operaciones nativas<br/>que se copian al script generado."]
+        PANDAS_AST["pandas._helper_sources()<br/>_MethodToFunction<br/><b>Extraen helpers necesarios</b> de operations/pandas;<br/>eliminan self y copian dependencias recursivas."]
+        NATIVE_OPS["operations/polars<br/>módulos io / row / structural / date,<br/>conversion / logical / numeric / text<br/><b>Implementan</b> todo el catálogo Polars."]
         RUNTIME["codegen.runtime<br/>resolve_parameters(), step_parameters(),<br/>check_context(), script_main()<br/><b>Se copian al script</b> para resolver<br/>parámetros, validar inputs y exponer CLI."]
         SOURCE["Código fuente Python standalone<br/><b>run(datasources, parameters, base_dir)</b><br/>y bloque de ejecución CLI."]
 
         PLAN_OUT -->|"ExecutionPlan"| REGISTRY
         REGISTRY -->|"framework pandas"| PANDAS
         REGISTRY -->|"framework nativo"| NATIVE
-        PANDAS --> PROCESSOR_AST
+        PANDAS --> PANDAS_AST
         NATIVE --> NATIVE_OPS
         PANDAS --> RUNTIME
         NATIVE --> RUNTIME
         PANDAS -.->|"nodo fx"| FX_RENDER
         NATIVE -.->|"nodo fx compatible"| FX_RENDER
-        PROCESSOR_AST --> SOURCE
+        PANDAS_AST --> SOURCE
         NATIVE_OPS --> SOURCE
         RUNTIME --> SOURCE
         FX_RENDER -.-> SOURCE
@@ -84,7 +84,7 @@ flowchart LR
     classDef component fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
     classDef artifact fill:#fff3e0,stroke:#ef6c00,color:#e65100;
     class PIPELINE input;
-    class MAIN,CLI,BUILD,BUILD_PLAN,COLLECT,PORTS,ORDER,CATALOG,VALIDATE,EXPRESSION,PLAN_OUT,REGISTRY,PANDAS,NATIVE,FX_RENDER,PROCESSOR_AST,NATIVE_OPS,RUNTIME,SOURCE,NOTEBOOK,MANIFEST component;
+    class MAIN,CLI,BUILD,BUILD_PLAN,COLLECT,PORTS,ORDER,CATALOG,VALIDATE,EXPRESSION,PLAN_OUT,REGISTRY,PANDAS,NATIVE,FX_RENDER,PANDAS_AST,NATIVE_OPS,RUNTIME,SOURCE,NOTEBOOK,MANIFEST component;
     class WRITE artifact;
 ```
 
@@ -100,9 +100,9 @@ flowchart LR
 | `OperationSpec`, `get_operation`, `compatibility_matrix` | Declaran aridad, esquema de parámetros y frameworks compatibles; resuelven alias de operación. |
 | `parameter_reference`, `validate_value`, `validate_constraints`, `validate_target_parameters` | Detectan parámetros runtime y verifican esquema, reglas cruzadas y capacidades por framework. |
 | `parse_expression`, `render_expression` | Convierte `fx` a una AST restringida y luego a sintaxis del backend; no usa `eval`. |
-| `EMITTERS`, `PandasEmitter`, emitters nativos | Eligen backend y generan las llamadas explícitas por nodo junto con sus helpers mínimos. |
-| `_helper_sources`, `_MethodToFunction` | En pandas inspeccionan métodos locales permitidos, los convierten de métodos de instancia a funciones y siguen dependencias necesarias. |
-| `PolarsOps`, `ArrowOps`, `SparkOps` | Proveen implementaciones nativas para los emitters de Polars, PyArrow y PySpark. |
+| `EMITTERS`, `PandasEmitter`, `PolarsEmitter` | Eligen backend y generan las llamadas explícitas por nodo junto con sus helpers mínimos. |
+| `_helper_sources`, `_MethodToFunction` | En pandas inspeccionan métodos permitidos de `engine.operations.pandas`, los convierten de métodos de instancia a funciones y siguen dependencias necesarias. |
+| `PolarsOperations` | Compone las implementaciones Polars por categoría; su superficie se comprueba contra el catálogo completo. |
 | `step_parameters`, `check_context`, `script_main` | Se incluyen en el script para validar inputs y parámetros de ejecución, leer archivos de argumentos y ejecutar `run()`. |
 | `emit_notebook` | Genera tres celdas reproducibles: definiciones, inputs configurables y ejecución; no reemplaza `main.py`. |
 | `build_manifest`, `parameter_schema`, `sha256` | Construyen metadatos de runtime y calculan los hashes del plan y archivos emitidos. |
@@ -116,20 +116,25 @@ flowchart LR
     MERGE["pipeline_clean.merge_pipeline_clean()<br/>_records() + _parameters()<br/><b>Normaliza envelopes y parámetros</b>,<br/>omite registros borrados y valida referencias."]
     CLEAN["pipeline_clean.json<br/>pipeline JSON normalizado"]
     CLI["CLI de codegen<br/><b>requiere que le entreguen el JSON</b>"]
-    RUNNER["PipelineRunner.run()<br/><b>Referencia/debug</b>: ejecuta en proceso<br/>con registry y procesadores; no genera script."]
+    RUNNER["PipelineRunner.run()<br/><b>Referencia/debug</b>: ejecuta en proceso<br/>con operation_registry; no genera script."]
+    REGISTRY["engine.core.operation_registry<br/><b>Enruta</b> cada operación a operations/pandas."]
+    PANDAS_OPS["engine.operations.pandas<br/><b>Implementaciones pandas</b><br/>compartidas con la extracción del emitter."]
 
     SNAPSHOTS --> EXPORT
     EXPORT --> MERGE --> CLEAN
     CLEAN -.->|"el usuario lo proporciona al CLI"| CLI
     CLEAN -.->|"ejecución local de debug"| RUNNER
     EXPORT -.->|"función histórica independiente"| RUNNER
+    RUNNER --> REGISTRY --> PANDAS_OPS
 ```
 
 `merge_pipeline_clean` **no se llama automáticamente** desde `build_artifact` ni
 desde el CLI. La integración con API/DataIntegration debe invocar la limpieza o
 entregar directamente un pipeline normalizado. `PipelineRunner` y
 `operation_registry` se mantienen como referencia para pruebas/debug; el código
-generado contiene sus propios helpers y no importa esos módulos.
+generado contiene sus propios helpers y no importa esos módulos. El runner y el
+emitter comparten las implementaciones pandas, pero el runner las ejecuta en
+proceso y el emitter las transforma en código autónomo para el worker.
 
 ## Artefacto resultante
 

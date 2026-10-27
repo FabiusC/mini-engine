@@ -1,8 +1,6 @@
-# Optional execution runtimes used by native emitter integration tests.
+# Optional worker and integration-test dependencies.
 -r requirements.txt
 polars>=1.24,<2
-pyarrow>=14.0.0
-pyspark>=4.0,<5
 confluent-kafka>=2.6,<3
 nbformat>=5.10,<6
 nbclient>=0.10,<1

@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 
-class IOProcessor:
+class IOOperations:
 	"""Stateless io operations for dataframe pipelines."""
 
 	def read_csv(self, filepath: str | Path) -> pd.DataFrame:

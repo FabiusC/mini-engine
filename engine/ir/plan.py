@@ -81,7 +81,7 @@ def build_plan(
 	framework: str = "pandas",
 ) -> ExecutionPlan:
 	"""Validate and compile without loading data or importing a dataframe framework."""
-	if engine != "python" or framework not in ("pandas", "polars", "pyarrow", "pyspark"):
+	if engine != "python" or framework not in ("pandas", "polars"):
 		raise ValueError(f"Unsupported target {engine}/{framework}")
 	if not isinstance(pipeline, Mapping):
 		raise ValueError("Pipeline must be an object")

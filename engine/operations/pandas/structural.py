@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import pandas as pd
 
 
-class StructuralProcessor:
+class StructuralOperations:
 	"""Stateless structural operations for dataframe pipelines."""
 
 	def add_column(self, df: pd.DataFrame, column_name: str, value: object = None) -> pd.DataFrame:

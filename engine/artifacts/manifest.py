@@ -79,7 +79,7 @@ def build_manifest(
 		"datasource_port_ids": list(plan.datasource_port_ids),
 		"output_node_ids": list(plan.output_node_ids),
 		"execution": {
-			"command": ["spark-submit" if plan.framework == "pyspark" else "python", "main.py"],
+			"command": ["python", "main.py"],
 			"parameters_argument": "--params-file",
 			"datasources_argument": "--datasources-file",
 			"base_dir_argument": "--base-dir",

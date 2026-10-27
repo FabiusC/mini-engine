@@ -4,10 +4,10 @@ from datetime import time
 
 import pandas as pd
 
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas.structural import StructuralOperations
 
 
-class ConversionProcessor:
+class ConversionOperations:
 	"""Stateless dataframe conversions."""
 
 	def _assign(
@@ -24,7 +24,7 @@ class ConversionProcessor:
 			raise ValueError("new_column_name is required when create_new_column is true")
 		if not create_new_column and new_column_name is not None:
 			raise ValueError("new_column_name requires create_new_column to be true")
-		return StructuralProcessor().assign_result(
+		return StructuralOperations().assign_result(
 			df, source, values, create_new_column=create_new_column,
 			new_column_name=new_column_name if create_new_column else None,
 		)

@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from engine.processors.structural_processor import StructuralProcessor
+from engine.operations.pandas.structural import StructuralOperations
 from engine.core.operation_registry import execute_operation
 
 
@@ -60,7 +60,7 @@ def test_missing_source_column_uses_pandas_key_error() -> None:
 
 
 def test_add_column_fills_a_constant_and_rejects_existing_names() -> None:
-	processor = StructuralProcessor()
+	processor = StructuralOperations()
 	result = processor.add_column(_frame(), "region", "South")
 
 	assert result["region"].tolist() == ["South", "South"]
