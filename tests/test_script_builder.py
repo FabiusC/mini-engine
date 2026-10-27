@@ -561,6 +561,18 @@ def test_builder_and_generated_cli_run_outside_repository(tmp_path):
 	assert failed.stdout == ""
 
 
+def test_codegen_cli_defaults_artifacts_under_output_folder(tmp_path):
+	env = {**os.environ, "PYTHONPATH": str(ROOT)}
+	subprocess.run([
+		sys.executable, "-m", "engine.codegen", str(ROOT / "dag/pipeline.json"),
+		"--pipeline-id", "orders", "--pipeline-version", "1",
+	], cwd=tmp_path, env=env, capture_output=True, text=True, check=True)
+
+	artifact = tmp_path / "output" / "pipeline"
+	assert (artifact / "main.py").is_file()
+	assert (artifact / "manifest.json").is_file()
+
+
 def test_generated_cli_supports_external_csv_datasources(tmp_path):
 	pipeline = {"nodes": [node("limit", "limit", {"limit": 1})], "edges": []}
 	compile_module(tmp_path, pipeline)

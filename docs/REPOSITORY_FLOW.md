@@ -149,7 +149,8 @@ sequenceDiagram
 1. **Entrada:** `python main.py <pipeline.json> ...` delega en el CLI de
    `engine.codegen`. También se puede llamar directamente a
    `engine.codegen.builder.build_artifact`. En ambos casos el pipeline se
-   entrega como JSON con nodos, aristas, operaciones y parámetros.
+   entrega como JSON con nodos, aristas, operaciones y parámetros. Si no se
+   especifica `--output-dir`, la CLI usa `output/<nombre-del-JSON>/`.
 2. **Plan lógico:** `build_plan` no carga datasets ni importa pandas/Polars/Spark.
    `pipeline_graph` valida referencias de nodos y calcula el orden topológico.
    `catalog`, `validate` y `targets` verifican nombres/aliases de operaciones,
@@ -193,6 +194,10 @@ dependencias del script generado ni del worker que lo ejecuta.
 ```bash
 # Compilar desde un pipeline JSON normalizado
 python main.py dag/pipeline_codegen.json \
+  --pipeline-id orders --pipeline-version 1
+
+# Elegir explícitamente otra carpeta de artefactos
+python main.py dag/pipeline_codegen.json \
   --output-dir /tmp/orders-pandas \
   --pipeline-id orders --pipeline-version 1
 
@@ -207,3 +212,6 @@ El resultado es un artefacto con `main.py`, `manifest.json` y, de solicitarse,
 `pipeline.ipynb`. Este diagrama termina en la generación del artefacto; la
 publicación, Kafka, Job Dispatcher y ejecución de workers están descritos en el
 [diagrama de arquitectura de integración](ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
+Sin `--output-dir`, el ejemplo genera los archivos en
+`output/pipeline_codegen/`; como el artefacto es inmutable, esa carpeta debe no
+existir antes de compilar.

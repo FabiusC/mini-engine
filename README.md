@@ -39,11 +39,21 @@ paquete; no importa el catálogo, los emitters ni nuestros processors.
 Desde la raíz del proyecto:
 
 ```bash
+# Por defecto genera output/pipeline_codegen/main.py y manifest.json
+python -m engine.codegen dag/pipeline_codegen.json \
+  --pipeline-id orders \
+  --pipeline-version 1
+
+# Para elegir otra ubicación explícitamente
 python -m engine.codegen dag/pipeline_codegen.json \
   --output-dir /tmp/orders-v1-pandas \
   --pipeline-id orders \
   --pipeline-version 1
 ```
+
+El directorio por defecto se forma como `output/<nombre-del-JSON>/`. Los
+artefactos no se sobrescriben: para compilar de nuevo el mismo pipeline, usa un
+`--output-dir` distinto.
 
 Para Polars y notebook:
 
