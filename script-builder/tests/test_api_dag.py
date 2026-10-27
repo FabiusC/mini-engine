@@ -189,3 +189,6 @@ def test_real_api_snapshots_build_a_script_that_a_worker_runs(tmp_path: Path, fr
 		artifact, datasources_file=DAG / "pipeline_clean_datasources.json", base_dir=tmp_path,
 	)
 	assert exit_code == 0
+	output = tmp_path / "output" / "segment_sales_by_segment.csv"
+	assert output.is_file()
+	assert len(pd.read_csv(output)) == 3

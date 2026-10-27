@@ -128,6 +128,24 @@
                     "_base"
                 ]
             }
+        },
+        {
+            "id": "b39b4335-a604-4bb3-9c0c-25d4083ad2d8",
+            "input_ports": [
+                {
+                    "id": "ca85cf9c-bd14-427a-ae80-5795a2a0900b",
+                    "ordinal": 0
+                }
+            ],
+            "output_ports": [],
+            "operation": {
+                "id": "ffcda258-f929-4cb7-b862-0c20c2bf4de5",
+                "name": "write_csv"
+            },
+            "parameters": {
+                "filepath": "output/segment_sales_by_segment.csv",
+                "index": false
+            }
         }
     ],
     "edges": [
@@ -158,6 +176,13 @@
             "target_node_id": "83449065-633d-46a7-a695-1c9449c95296",
             "source_output_port_id": "fa352f9b-aecd-41b5-abaf-2702930e6349",
             "target_input_port_id": "16ccfd14-a4eb-4c16-8795-2acbcc3b456e"
+        },
+        {
+            "id": "e28beed2-748e-46ae-81a2-2ba4e375d72c",
+            "source_node_id": "83449065-633d-46a7-a695-1c9449c95296",
+            "target_node_id": "b39b4335-a604-4bb3-9c0c-25d4083ad2d8",
+            "source_output_port_id": "9c18acb4-1204-4530-a319-860a0614bd1d",
+            "target_input_port_id": "ca85cf9c-bd14-427a-ae80-5795a2a0900b"
         }
     ]
 }

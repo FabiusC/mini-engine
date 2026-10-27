@@ -178,6 +178,9 @@ que escribe `dag/pipeline_clean.json`. Los snapshots actuales compilan y se
 ejecutan en Pandas y Polars usando `dag/pipeline_clean_datasources.json` para
 los tres puertos externos. Cuando exista la captura
 de la API, su salida será la entrada de `build_artifact`.
+El DAG termina en el nodo `guardar_csv` (`write_csv`), conectado a la salida de
+`avg`, y el worker escribe el resultado agregado en
+`output/segment_sales_by_segment.csv` relativo a la raíz del repositorio.
 
 ## Comandos
 

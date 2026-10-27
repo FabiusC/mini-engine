@@ -66,6 +66,22 @@
             "source_output_port_id": "fa352f9b-aecd-41b5-abaf-2702930e6349",
             "target_input_port_id": "16ccfd14-a4eb-4c16-8795-2acbcc3b456e",
             "description": ""
+        },
+        {
+            "id": "e28beed2-748e-46ae-81a2-2ba4e375d72c",
+            "created_at": "2026-10-27T22:04:00Z",
+            "edited_at": "2026-10-27T22:04:00Z",
+            "is_deleted": false,
+            "deleted_at": null,
+            "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+            "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+            "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+            "version_id": "80de2604-e93e-4e21-ba3c-d464ce9154c8",
+            "source_node_id": "83449065-633d-46a7-a695-1c9449c95296",
+            "target_node_id": "b39b4335-a604-4bb3-9c0c-25d4083ad2d8",
+            "source_output_port_id": "9c18acb4-1204-4530-a319-860a0614bd1d",
+            "target_input_port_id": "ca85cf9c-bd14-427a-ae80-5795a2a0900b",
+            "description": "Guardar el resultado del promedio"
         }
     ]
 }

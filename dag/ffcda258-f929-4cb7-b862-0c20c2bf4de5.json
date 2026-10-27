@@ -1,0 +1,9 @@
+{
+    "success": true,
+    "message": "Operation retrieved successfully.",
+    "code": "OPERATION_RETRIEVED",
+    "data": {
+        "id": "ffcda258-f929-4cb7-b862-0c20c2bf4de5",
+        "name": "write_csv"
+    }
+}

@@ -334,6 +334,51 @@
                     ]
                 }
             ]
+        },
+        {
+            "id": "b39b4335-a604-4bb3-9c0c-25d4083ad2d8",
+            "created_at": "2026-10-27T22:04:00Z",
+            "edited_at": "2026-10-27T22:04:00Z",
+            "is_deleted": false,
+            "deleted_at": null,
+            "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+            "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+            "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+            "version_id": "80de2604-e93e-4e21-ba3c-d464ce9154c8",
+            "operation_id": "ffcda258-f929-4cb7-b862-0c20c2bf4de5",
+            "connector_id": null,
+            "name": "guardar_csv",
+            "description": "Guardar el resultado agregado en un archivo CSV",
+            "centroid_position_x": 120,
+            "centroid_position_y": -355,
+            "notes": "",
+            "input_ports": [
+                {
+                    "id": "ca85cf9c-bd14-427a-ae80-5795a2a0900b",
+                    "created_at": "2026-10-27T22:04:00Z",
+                    "edited_at": "2026-10-27T22:04:00Z",
+                    "is_deleted": false,
+                    "deleted_at": null,
+                    "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                    "node_id": "b39b4335-a604-4bb3-9c0c-25d4083ad2d8",
+                    "required": true,
+                    "ordinal": 0,
+                    "position": "left",
+                    "max_connections": 1,
+                    "description": "Dataset que se guardará"
+                }
+            ],
+            "output_ports": [],
+            "parameters": [
+                {
+                    "name": "filepath",
+                    "value": "output/segment_sales_by_segment.csv"
+                },
+                {
+                    "name": "index",
+                    "value": false
+                }
+            ]
         }
     ]
 }

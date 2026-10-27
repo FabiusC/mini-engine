@@ -268,8 +268,9 @@ elementos eliminados y las aristas conectadas a ellos.
 
 Los snapshots de `dag/` forman un DAG funcional: tres joins (`Nodo_4`, `name_1`,
 `inner_join`) y un `aggregate` (nodo `avg`: media de `Sales_south_base` por
-`Segment_south_base`). Los tres puertos de entrada externos se mapean a CSV en
-`dag/pipeline_clean_datasources.json`:
+`Segment_south_base`), seguido de `guardar_csv`. Los tres puertos de entrada
+externos se mapean a CSV en `dag/pipeline_clean_datasources.json`. Al ejecutar el
+worker, el resultado se guarda en `output/segment_sales_by_segment.csv`:
 
 ```bash
 python script-builder/src/main.py dag/pipeline_clean.json
