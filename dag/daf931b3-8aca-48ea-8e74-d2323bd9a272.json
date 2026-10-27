@@ -11,8 +11,8 @@
         "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
         "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
         "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
-        "name": "avg",
-        "description": "Calcular el promedio de una columna numérica",
+        "name": "aggregate",
+        "description": "Calcular el promedio de una columna num\u00e9rica",
         "operation_category_id": "50b893e5-b491-4136-bac1-0bc0e9338831",
         "operation_template_id": "cdfc807d-4e93-4429-93db-05fe96891f48",
         "input_ports": [

@@ -1,16 +1,16 @@
 # Arquitectura: DAG Script Builder
 
 Diagrama de conexión del componente de este repositorio con la arquitectura
-general. El **DAG Script Builder** (`engine.codegen`) se ubica como módulo dentro
-de DataIntegration/Manager. El paquete `engine.dispatch` aporta contratos y
-adaptadores reutilizables para la integración con Kafka y Kubernetes; no es por
-sí mismo el servicio Job Dispatcher.
+general. El **DAG Script Builder** (`script-builder/src/script_builder`) se
+ubica como módulo dentro de DataIntegration/Manager. La solicitud de ejecución,
+Kafka, el Job Dispatcher y Kubernetes son componentes de la plataforma y **no
+están en este repositorio**. El pod ejecuta el script en un worker Pandas o
+Polars. `workers/src` solo emula ese worker localmente: verifica el manifest y
+ejecuta `main.py`.
 
-La captura de endpoints y el paso API → cleaner → builder requieren integración
-del caller: este repositorio no realiza llamadas HTTP ni ejecuta
-`merge_pipeline_clean` automáticamente desde la CLI. `Dispatcher.prepare()`
-crea un Job spec, pero la integración con Kubernetes debe someterlo mediante un
-callback externo.
+Hoy el builder lee `dag/pipeline_test.json`. La captura de los endpoints y el
+paso API → `pipeline_clean` → builder están pendientes: `pipeline_clean` está
+desconectado del flujo principal.
 
 ```mermaid
 flowchart LR
@@ -32,7 +32,7 @@ flowchart LR
         EXEC_MANAGER["Execution Manager"]
         API_RESPONSE["Respuestas JSON<br/>nodes + edges + operations"]
 
-        subgraph BUILDER["DAG Script Builder · engine.codegen"]
+        subgraph BUILDER["DAG Script Builder · script-builder/src"]
             CLEAN["pipeline_clean<br/>normalizar nodes, edges, operations"]
             VALIDATE["IR + validación"]
             TOPOLOGY["Validación topológica<br/>orden de nodos"]
@@ -59,16 +59,16 @@ flowchart LR
         EXEC_MANAGER -->|"coordina generación/ejecución"| DATA_INTEGRATION
     end
 
-    subgraph DISPATCH_LIB["Librería de integración de este proyecto · engine.dispatch"]
-        REQUEST["ExecutionRequest<br/>URI/hash + parámetros + datasources"]
-        PRODUCER["KafkaPublisher"]
-        CONSUMER["KafkaExecutionConsumer"]
-        JOB_SPEC["Dispatcher.prepare<br/>validar perfil y preparar Job"]
-        K8S_SUBMIT["submit callback<br/>integración del despliegue"]
+    subgraph DISPATCH_LIB["Integración de ejecución · plataforma (fuera de este repo)"]
+        REQUEST["Solicitud de ejecución<br/>URI/hash + parámetros + datasources"]
+        PRODUCER["Kafka producer"]
+        CONSUMER["Kafka consumer"]
+        JOB_SPEC["Preparar Job<br/>validar perfil e imagen"]
+        K8S_SUBMIT["submit<br/>crear Job en el cluster"]
 
         DATA_INTEGRATION -->|"solicita ejecución"| REQUEST
         REQUEST -->|"serializa"| PRODUCER
-        CONSUMER -->|"handler: ExecutionRequest"| JOB_SPEC
+        CONSUMER -->|"handler: solicitud"| JOB_SPEC
         JOB_SPEC -->|"Job spec"| K8S_SUBMIT
     end
 
@@ -80,18 +80,18 @@ flowchart LR
         ARTIFACT -->|"devuelve main.py + manifest"| DATA_INTEGRATION
         DATA_INTEGRATION -->|"publica artefacto inmutable"| ARTIFACT_STORE
         ARTIFACT_STORE -->|"URI + manifest SHA-256"| REQUEST
-        PRODUCER -->|"produce task / ExecutionRequest"| KAFKA_EXEC
-        KAFKA_EXEC -->|"consume task / ExecutionRequest"| CONSUMER
+        PRODUCER -->|"produce task"| KAFKA_EXEC
+        KAFKA_EXEC -->|"consume task"| CONSUMER
     end
 
     subgraph RUNTIME["Cluster Kubernetes — Job Dispatcher y workers"]
         JOB_DISPATCHER["Job Dispatcher<br/>servicio consumidor de Kafka"]
         K8S_API["Kubernetes API"]
-        POD["Pod del Job<br/>worker launcher"]
+        POD["Pod del Job<br/>worker pandas / polars<br/>(emulado en workers/src)"]
         PROFILE["Imagen aprobada<br/>Python + framework"]
         DATA[("Datasets / resultados<br/>volúmenes u object storage")]
 
-        JOB_DISPATCHER -.->|"instancia el consumer y configura el handler"| CONSUMER
+        JOB_DISPATCHER -.->|"ejecuta el consumer"| CONSUMER
         K8S_SUBMIT -.->|"llama API del cluster"| K8S_API
         K8S_API -->|"crea Job y Pod"| POD
         POD -->|"ejecuta artefacto en"| PROFILE
@@ -111,9 +111,11 @@ flowchart LR
     classDef implemented fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
     classDef external fill:#eaf3ff,stroke:#1565c0,color:#0d47a1;
     classDef integration fill:#fff3e0,stroke:#ef6c00,color:#e65100;
-    class CLEAN,VALIDATE,TOPOLOGY,EMIT,ARTIFACT,REQUEST,PRODUCER,CONSUMER,JOB_SPEC implemented;
-    class USER,UI,API,API_NODES,API_EDGES,API_OPERATIONS,API_RESPONSE,DATA_INTEGRATION,META_DB,SCHEDULER,TEMPORAL,EXEC_MANAGER,ARTIFACT_STORE,KAFKA_EXEC,KAFKA_EVENTS,JOB_DISPATCHER,K8S_API,POD,PROFILE,DATA,UI_STATUS external;
-    class BUILDER,DISPATCH_LIB,K8S_SUBMIT integration;
+    classDef emulated fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c;
+    class CLEAN,VALIDATE,TOPOLOGY,EMIT,ARTIFACT implemented;
+    class USER,UI,API,API_NODES,API_EDGES,API_OPERATIONS,API_RESPONSE,DATA_INTEGRATION,META_DB,SCHEDULER,TEMPORAL,EXEC_MANAGER,ARTIFACT_STORE,KAFKA_EXEC,KAFKA_EVENTS,JOB_DISPATCHER,K8S_API,PROFILE,DATA,UI_STATUS,REQUEST,PRODUCER,CONSUMER,JOB_SPEC,K8S_SUBMIT external;
+    class BUILDER,DISPATCH_LIB integration;
+    class POD emulated;
 ```
 
 ## Flujo de datos y responsabilidades
@@ -132,12 +134,12 @@ flowchart LR
    `PRODUCER → KAFKA_EXEC` lo publica. Incluye identificador, URI/hash,
    parámetros y ubicaciones de entrada, no el código del script.
 5. **Consumo y despacho:** `KAFKA_EXEC → CONSUMER` entrega la task.
-   `JOB_DISPATCHER -.-> CONSUMER` representa que el servicio configura y usa la
-   librería consumer de este proyecto. El handler pasa el request a
-   `Dispatcher.prepare`; el `submit callback` solicita crear el Job.
+   `JOB_DISPATCHER -.-> CONSUMER` representa que el servicio ejecuta el
+   consumer. El handler prepara el Job y `submit` solicita crearlo.
 6. **Ejecución y estado:** Kubernetes crea el Pod desde el Job spec. El worker
-   lee/verifica el artefacto, ejecuta el entrypoint con el framework indicado y
-   publica los eventos de estado en el topic de eventos.
+   lee y verifica el artefacto, ejecuta el entrypoint con el framework indicado y
+   publica los eventos de estado en el topic de eventos. En este repositorio,
+   `workers/src` emula la verificación y la ejecución.
 
 ### Semántica de las relaciones
 
@@ -150,13 +152,13 @@ flowchart LR
 | DataIntegration → Script Builder | `invoca compile(pipeline, target)` | Llamada interna al módulo compilador. |
 | Script Builder → DataIntegration | `devuelve artefacto` | Entrega los archivos generados localmente al módulo que lo invocó. |
 | DataIntegration → Artifact Store | `publica artefacto` | Guarda el script y manifest versionados en storage compartido. |
-| Artifact Store → ExecutionRequest | `URI + manifest SHA-256` | Referencia al artefacto, no transfiere el contenido por Kafka. |
-| DataIntegration → ExecutionRequest | `crea solicitud` | Construye el mensaje con URI/hash, parámetros y datasources. |
-| ExecutionRequest → KafkaPublisher | `serializa` | Convierte el contrato a JSON para publicar. |
-| KafkaPublisher → Kafka | `produce` | Publica en `pipeline.executions` la referencia al artefacto. |
-| Kafka → KafkaExecutionConsumer | `entrega task` | El consumer del Job Dispatcher recibe el mensaje del topic. |
-| Job Dispatcher ⇢ KafkaExecutionConsumer | `instancia/configura` | El servicio conecta el handler con `Dispatcher.prepare` y su submit callback. |
-| submit callback → Kubernetes API | `crea Job` | Solicita un Pod con el perfil/imagen aprobados. |
+| Artifact Store → Solicitud | `URI + manifest SHA-256` | Referencia al artefacto, no transfiere el contenido por Kafka. |
+| DataIntegration → Solicitud | `crea solicitud` | Construye el mensaje con URI/hash, parámetros y datasources. |
+| Solicitud → Kafka producer | `serializa` | Convierte el contrato a JSON para publicar. |
+| Kafka producer → Kafka | `produce` | Publica en `pipeline.executions` la referencia al artefacto. |
+| Kafka → Kafka consumer | `entrega task` | El consumer del Job Dispatcher recibe el mensaje del topic. |
+| Job Dispatcher ⇢ Kafka consumer | `ejecuta` | El servicio conecta el handler con la preparación y el submit del Job. |
+| submit → Kubernetes API | `crea Job` | Solicita un Pod con el perfil/imagen aprobados. |
 | Pod → Artifact Store | `lee/descarga artefacto` | Recupera y verifica los archivos antes de ejecutarlos. |
 | Pod → Kafka events | `produce execution status` | Publica `started`, `succeeded` o `failed`. |
 
@@ -166,19 +168,21 @@ no significan un segundo tipo de mensaje.
 
 ## Estado de integración
 
-- **Implementado en este proyecto:** `engine.codegen` (compilador); en
-  `engine.dispatch`, contrato de solicitud, `KafkaPublisher`,
-  `KafkaExecutionConsumer`, generación/preparación del Job, launcher/verificación
-  y publicación opcional de eventos.
-- **Integración de plataforma pendiente:** insertar el módulo builder en
-  DataIntegration, cablear las respuestas de API a su entrada, publicar el
-  artefacto en storage compartido, ejecutar el producer/consumer con la
-  configuración del despliegue y conectar el `submit` callback contra
-  Kubernetes. El Job Dispatcher debe correr como servicio consumidor de Kafka
-  y usar las funciones de `engine.dispatch`.
-- **Responsabilidad de la plataforma:** API/UI, persistencia del DAG, scheduler,
-  políticas de reintento/DLQ, imágenes aprobadas, acceso a datos y observabilidad.
+- **Implementado en este repositorio:**
+  - `script-builder/src`: DAG → plan validado y ordenado → `main.py` +
+    `manifest.json` para Pandas o Polars.
+  - `workers/src`: emulación local de los workers. Verifica el manifest y los
+    hashes, y ejecuta el script.
+- **Pendiente de integración:**
+  - Capturar las respuestas de la API y conectarlas con `pipeline_clean` y el
+    builder.
+  - Publicar el artefacto en el storage compartido.
+- **Responsabilidad de la plataforma:**
+  - Solicitud de ejecución, Kafka, Job Dispatcher, Kubernetes e imágenes de los
+    workers.
+  - API/UI, persistencia del DAG, scheduler, reintentos/DLQ, acceso a datos y
+    observabilidad.
 
 La caja de módulos muestra **pertenencia**, no una conexión de red. Las flechas
-nombran la acción o el contrato de cada relación. Importar o usar el builder no
-inicia conexiones con Kafka ni con Kubernetes.
+nombran la acción o el contrato de cada relación. El builder no abre conexiones
+con Kafka ni con Kubernetes.

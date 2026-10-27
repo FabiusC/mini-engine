@@ -1,171 +1,170 @@
 # DAG Script Builder
 
-El proyecto permite **compilar un DAG a un artefacto ejecutable**, sin ejecutar
-operaciones ni leer datasets durante la generación:
+El repositorio genera un **script genérico** a partir de un DAG. Un worker lo
+ejecuta después. Está dividido en dos partes independientes:
+
+| Carpeta | Responsabilidad |
+|---|---|
+| [`script-builder/src/`](script-builder/src) | Lee el DAG, valida su topología y genera `main.py` + `manifest.json` en `output/`. No ejecuta operaciones ni lee datasets. |
+| [`workers/src/`](workers/src) | Emula los workers de Pandas y Polars: verifica el manifest y ejecuta el `main.py` generado. |
+
+En la raíz se quedan los insumos y la documentación compartidos: `dag/` (JSON de
+entrada), `data/` (CSV de ejemplo), `docs/`, `catalogo_operaciones.xlsx`, este
+README, `requirements.txt` y `pytest.ini`.
 
 ```text
-API responses / pipeline JSON
-    → (optional caller step) merge_pipeline_clean
-    → normalized pipeline JSON
-    → build_plan (IR lógico y validaciones)
-    → Emitter (pandas / Polars)
-    → main.py + manifest.json [+ pipeline.ipynb]
-    → solicitud de ejecución → dispatcher → worker del perfil aprobado
+dag/pipeline_test.json
+    → script_builder.__main__     (CLI: lee el JSON)
+    → build_artifact              (codegen/builder.py)
+        → build_plan              (ir/plan.py: catálogo, validaciones, orden topológico de dag/pipeline_graph.py)
+        → PandasEmitter | PolarsEmitter (codegen/: extrae solo las operaciones usadas)
+        → build_manifest          (artifacts/manifest.py: hashes, perfil, esquema de parámetros)
+    → output/pipeline_test/main.py + manifest.json
+    → workers: load_artifact (verifica) → PandasWorker | PolarsWorker → python main.py
 ```
 
-El diagrama de contexto que conecta el builder con la UI/API, Kafka y los workers
-de Kubernetes está en [docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md](docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
-El detalle de los módulos del repositorio y del flujo interno de generación de
-scripts está en [docs/REPOSITORY_FLOW.md](docs/REPOSITORY_FLOW.md).
-El detalle de cada clase y función que participa en la compilación está en
-[docs/CODEGEN_COMPONENTS.md](docs/CODEGEN_COMPONENTS.md).
-`merge_pipeline_clean` no se invoca automáticamente desde el CLI ni desde
-`build_artifact`: quien integra el builder debe entregar el pipeline normalizado.
+Por ahora el DAG se lee desde JSON. Más adelante se capturará de la API
+(endpoints de nodes, edges y operation). El flujo `pipeline_clean`
+([`script_builder/dag/pipeline_clean.py`](script-builder/src/script_builder/dag/pipeline_clean.py))
+convierte esas respuestas en `dag/pipeline_clean.json`. Hoy está **desconectado**
+del flujo principal y se invoca a mano con `export_clean_pipeline("dag")`.
 
-El worker no necesita instalar este proyecto ni tener nuestro catálogo de
-operaciones. El script generado incluye llamadas explícitas por nodo y **solo las
-funciones nativas necesarias**, junto con sus auxiliares. El builder transforma a
-funciones independientes el AST de métodos locales de operaciones;
-así reutiliza sus validaciones y semántica sin duplicar implementaciones. No se
-procesa texto del DAG como código Python ni se usa `eval`.
+Diagramas: [docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md](docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md)
+(contexto en la arquitectura), [docs/REPOSITORY_FLOW.md](docs/REPOSITORY_FLOW.md)
+(flujo del repositorio) y [docs/CODEGEN_COMPONENTS.md](docs/CODEGEN_COMPONENTS.md)
+(clases y funciones).
 
-`python main.py ...` ahora compila artefactos, con los mismos argumentos que
-`python -m engine.codegen ...`. `PipelineRunner` y las funciones Python históricas
-de `main.py` se mantienen solo como referencia para tests y debug local.
-Los scripts no requieren este repositorio. El launcher opcional del worker usa
-únicamente `engine/dispatch`, el validador de esquemas y los inicializadores de
-paquete; no importa el catálogo, los emitters ni nuestras operaciones pandas.
+## Estructura
 
-## Compilar y ejecutar
+```text
+script-builder/
+  requirements.txt
+  src/
+    main.py                     # entrada: python script-builder/src/main.py
+    script_builder/
+      __main__.py               # CLI del builder
+      dag/                      # pipeline_graph (topología) y pipeline_clean (respuestas API → pipeline)
+      ir/                       # catálogo de operaciones, validación, expresiones fx, plan ordenado
+      codegen/                  # builder, emitters pandas/polars, runtime y notebook
+      artifacts/manifest.py     # contrato manifest.json
+      operations/pandas/        # implementaciones fuente que el emitter pandas copia al script
+      operations/polars/        # implementaciones fuente que el emitter polars copia al script
+  tests/
+workers/
+  requirements-pandas.txt
+  requirements-polars.txt
+  src/
+    main.py                     # entrada: python workers/src/main.py
+    workers/
+      __main__.py               # CLI del worker
+      artifact.py               # load_artifact: valida manifest y hashes SHA-256
+      base.py                   # Worker.run: comprueba framework y módulos, lanza main.py sin shell
+      pandas_worker.py, polars_worker.py
+  tests/
+```
 
-Desde la raíz del proyecto:
+El script generado **no importa `script_builder`**. El builder transforma el AST
+de los métodos de `operations/<framework>/` en funciones independientes. El
+script solo incluye las operaciones que usa el DAG, así que el worker no necesita
+este repositorio, solo el framework.
+
+## Uso
 
 ```bash
-# Por defecto genera output/pipeline_codegen/main.py y manifest.json
-python -m engine.codegen dag/pipeline_codegen.json \
-  --pipeline-id orders \
-  --pipeline-version 1
+python -m pip install -r requirements.txt   # builder + ambos workers + pytest
 
-# Para elegir otra ubicación explícitamente
-python -m engine.codegen dag/pipeline_codegen.json \
-  --output-dir /tmp/orders-v1-pandas \
-  --pipeline-id orders \
-  --pipeline-version 1
+# 1. Generar el script (por defecto: dag/pipeline_test.json → output/pipeline_test/, pandas)
+python script-builder/src/main.py
+python script-builder/src/main.py --framework polars --output-dir output/pipeline_test_polars
+python script-builder/src/main.py dag/pipeline_codegen.json --pipeline-id orders --pipeline-version 2 --notebook
+
+# 2. Ejecutarlo con el worker (por defecto: output/pipeline_test, worker según el manifest)
+python workers/src/main.py
+python workers/src/main.py output/pipeline_test_polars --worker polars
 ```
 
-El directorio por defecto se forma como `output/<nombre-del-JSON>/`. Los
-artefactos no se sobrescriben: para compilar de nuevo el mismo pipeline, usa un
-`--output-dir` distinto.
+Opciones del builder:
 
-Para Polars y notebook:
+| Opción | Por defecto |
+|---|---|
+| `pipeline` | `dag/pipeline_test.json` |
+| `--output-dir` | `output/<nombre-del-JSON>/` (se reemplaza en cada ejecución) |
+| `--pipeline-id` | nombre del JSON |
+| `--pipeline-version` | `1` |
+| `--framework` | `pandas` (`pandas` o `polars`) |
+| `--engine` | `python` |
+| `--notebook` | también genera `pipeline.ipynb` |
+
+Opciones del worker: `artifact` (por defecto `output/pipeline_test`),
+`--worker` (por defecto el framework del manifest), y `--params-file`,
+`--datasources-file` y `--base-dir`. `--base-dir` es la base de las rutas
+relativas del DAG; por defecto, la raíz del repositorio.
+
+`pipeline_test.json` lee `data/orders_south_2018.csv` y `data/Orders_Central.csv`.
+Los une por `Customer ID`, aplica operaciones de texto, numéricas, lógicas y de
+fecha, y escribe `output/processed_orders.csv` (1627 filas, 10 columnas). Pandas
+y Polars producen el mismo CSV; una prueba end-to-end lo verifica.
+
+El script también se ejecuta sin worker:
 
 ```bash
-python main.py dag/pipeline_codegen.json \
-  --output-dir /tmp/orders-v1-polars \
-  --pipeline-id orders --pipeline-version 1 \
-  --framework polars --notebook
+python output/pipeline_test/main.py --base-dir . [--params-file p.json] [--datasources-file d.json]
 ```
 
-Los únicos frameworks de generación disponibles son `pandas` y `polars`.
-Polars se instala en la imagen worker que ejecutará el artefacto.
+El proceso imprime un resumen JSON con filas y columnas por nodo. Los errores se
+propagan con traceback y un código de salida distinto de cero.
 
-El directorio de salida **no debe existir**: los artefactos publicados no se
-sobrescriben. Usa otra ruta para una nueva compilación. También se puede compilar
-`dag/pipeline.json`, que contiene el ejemplo estructural con parámetros fijos.
-
-Para el ejemplo parametrizado, crea un archivo de parámetros de ejecución:
-
-```json
-{
-  "source_csv": "data/orders_south_2018.csv",
-  "output_csv": "/tmp/orders-result.csv",
-  "row_limit": 100
-}
-```
-
-Guardándolo como `/tmp/orders-params.json`, ejecuta:
-
-```bash
-python /tmp/orders-v1-pandas/main.py \
-  --params-file /tmp/orders-params.json \
-  --base-dir /workspaces/mini-engine
-```
-
-`--base-dir` debe apuntar al directorio de datos del entorno de ejecución; la ruta
-mostrada es solo la de este workspace. Si no se proporciona, las rutas relativas
-usan el directorio de trabajo del proceso. Las conexiones SQL y URI con esquema
-no se resuelven como rutas relativas.
-
-El proceso imprime un resumen final JSON con filas y columnas por nodo. Spark
-puede emitir diagnósticos adicionales antes del resumen. Los datos se
-persisten únicamente mediante los nodos de salida declarados en el DAG. Los
-errores se propagan con traceback y código de salida distinto de cero; no se
-reportan como ejecuciones exitosas.
-
-### API Python
+### API Python del builder
 
 ```python
 import json
 from pathlib import Path
 
-from engine.ir import build_plan
-from engine.codegen import PandasEmitter, build_artifact
+from script_builder.codegen import PandasEmitter, build_artifact
+from script_builder.ir import build_plan
 
-pipeline = json.loads(Path("dag/pipeline_codegen.json").read_text())
-plan = build_plan(pipeline, engine="python", framework="pandas")
-logical_plan = plan.to_dict()  # Representación JSON independiente de pandas.
-script = PandasEmitter().emit(plan)
-
-manifest = build_artifact(
-    pipeline,
-    "/tmp/orders-v2-pandas",
-    pipeline_id="orders",
-    pipeline_version="2",
-)
+pipeline = json.loads(Path("dag/pipeline_test.json").read_text())
+plan = build_plan(pipeline, engine="python", framework="pandas")   # IR ordenado y validado
+script = PandasEmitter().emit(plan)                                 # código fuente de main.py
+manifest = build_artifact(pipeline, "output/demo", pipeline_id="demo", pipeline_version="1")
 ```
 
-El módulo generado expone
-`run(datasources=None, parameters=None, base_dir=None)`, que devuelve DataFrames
-por ID de nodo, como `PipelineRunner.run`. Aquí `parameters` es un mapa de
-**parámetros nombrados**, no las sobreescrituras por nodo del runner.
+`build_artifact` no sobrescribe un directorio existente salvo con
+`overwrite=True`, que es lo que usa el CLI. El módulo generado expone
+`run(datasources=None, parameters=None, base_dir=None)` y devuelve los
+DataFrames por ID de nodo.
 
 ## Contrato del plan y validaciones
 
-- `engine/ir/catalog.py`: operaciones lógicas, aridad, esquema de parámetros y
-  destinos soportados. Importar `engine.ir` no carga pandas.
-- `engine/ir/plan.py`: pasos ordenados, entradas por nodo o puerto externo, nodos
-  terminales y parámetros de ejecución requeridos. Reutiliza `pipeline_graph`.
-- `engine/ir/validate.py`: valida el subconjunto de JSON Schema utilizado por el
-  catálogo y restricciones entre parámetros.
-- Se rechazan ciclos, nodos duplicados o desconocidos, puertos inválidos o que no
-  pertenecen al nodo indicado, ordinales repetidos y varias aristas hacia un mismo
-  puerto de entrada. Una salida puede alimentar varios consumidores.
-- Esta versión admite **un DataFrame de salida por nodo**. Se rechazan nodos con
-  múltiples puertos de salida, en lugar de tratar resultados distintos como uno.
-- Una entrada sin arista representa un datasource externo, no un error de
-  topología. Debe proporcionarse por ID de puerto al ejecutar.
-- Los parámetros deben ser valores JSON finitos; los tipos, opciones, parámetros
-  obligatorios y nombres desconocidos se validan antes de generar código.
-  `limit` requiere un entero no negativo, sin las conversiones implícitas del
-  runner. No se inventan parámetros ausentes en snapshots.
-- Las columnas, tipos reales de datos y claves de join que dependan del dataset
-  se validan al ejecutar. Esta fase no implementa inferencia de esquemas.
+- `ir/catalog.py`: operaciones lógicas, aridad, esquema de parámetros, aliases
+  y destinos soportados. Importar `script_builder.ir` no carga pandas.
+- `ir/plan.py`: pasos en orden topológico (`dag/pipeline_graph.py`), entradas
+  por nodo o por puerto externo, nodos terminales y parámetros de ejecución.
+- `ir/validate.py`: valida el subconjunto de JSON Schema que usa el catálogo y
+  las restricciones entre parámetros.
+- Se rechazan ciclos, nodos duplicados o desconocidos y puertos inválidos o que
+  no pertenecen al nodo indicado. También se rechazan ordinales repetidos y
+  varias aristas hacia un mismo puerto de entrada. Una salida puede alimentar
+  varios consumidores.
+- Cada nodo produce **un DataFrame de salida**. Se rechazan nodos con varios
+  puertos de salida.
+- Una entrada sin arista es un datasource externo, no un error de topología. Se
+  proporciona por ID de puerto al ejecutar.
+- Los parámetros deben ser valores JSON finitos. Los tipos, las opciones, los
+  obligatorios y los nombres desconocidos se validan antes de generar código. No
+  se inventan parámetros ausentes.
+- Las columnas, los tipos reales y las claves de join que dependen del dataset
+  se validan al ejecutar.
 
 Un valor `{"$param": "nombre"}` referencia un parámetro de ejecución. Se admiten
-referencias anidadas en listas y objetos; esta sintaxis queda reservada en las
-declaraciones. Los valores constantes permanecen en el script: usa referencias
-para rutas variables, conexiones y secretos, y no publiques credenciales dentro
-del DAG. Los valores proporcionados en ejecución no se interpretan como código.
+referencias anidadas en listas y objetos. Los valores constantes quedan en el
+script. Usa referencias para rutas variables, conexiones y secretos, y no
+publiques credenciales en el DAG. Los valores de ejecución no se interpretan
+como código. Antes de ejecutar cualquier nodo se validan los parámetros
+resueltos de todos los pasos.
 
-Los parámetros nombrados faltantes o desconocidos y los datasources ausentes
-producen errores explícitos. Antes de ejecutar cualquier nodo se validan los
-parámetros resueltos de todos los pasos.
-
-Para entradas externas desde CLI, `--datasources-file` acepta un JSON
-`{"<id-del-puerto>": "/data/input.csv"}`. Desde Python,
-`datasources={"<id-del-puerto>": dataframe}` permite conservar tipos e índices.
-La interfaz CLI admite CSV para estos puertos; usa nodos `input` para otros
-formatos compatibles con el destino.
+`--datasources-file` acepta un JSON `{"<id-del-puerto>": "/data/input.csv"}`
+(solo CSV). Para otros formatos usa nodos `input`.
 
 ## Matriz de compatibilidad
 
@@ -181,25 +180,18 @@ formatos compatibles con el destino.
 | Logical | `logical`, `and`, `or`, `not`, `if`, `elseif`, `case`, `coalesce` / `ifnull`, `conditional_map` |
 | Date | `date_parser`, `date_parse`, `date_trunc`, `day`, `month`, `year`, `week`, `quarter`, `iso_quarter`, `iso_week`, `iso_week_day`, `iso_year`, `now`, `today`, `date_add`, `date_sub`, `date_diff`, `date_name`, `extract_date_part` |
 
-Se conservan los aliases `drop-column`, `rename-column`, `change-data-type`,
-`inner_join`, `outer_join`, `left_join` y `right_join`; se normalizan en el IR.
-Para muestreos reproducibles usa `random_state`. La matriz por destino está en
-`engine.ir.catalog.compatibility_matrix()` garantiza que cada operación
-canónica está disponible en ambos backends:
+Los aliases (`drop-column`, `inner_join`, `date add`, etc.) se normalizan en el
+IR. `script_builder.ir.catalog.compatibility_matrix()` confirma que cada
+operación canónica existe en Pandas y en Polars. Una prueba ejecuta cada
+operación del catálogo a través de un script Polars generado.
 
-| Operaciones del catálogo | pandas | Polars |
-|---|---|---|
-| Todas las operaciones canónicas | Sí | Sí |
+Las operaciones Polars son nativas: no convierten los datasets a pandas. Para
+coincidir con pandas, `read_csv` reintenta en Latin-1, las fechas de texto
+infieren su formato a partir del primer valor, y los joins conservan el orden de
+filas de `pandas.merge`. Diferencias propias del backend:
 
-Las operaciones Polars son nativas: no se convierten datasets a pandas. Algunas
-opciones de IO tienen restricciones propias del backend y se validan al compilar
-y de nuevo antes de ejecutar:
-
-- IO Polars: CSV/Parquet, UTF-8 y delimitador de un carácter; Excel y SQL son
-  opciones exclusivas del backend Pandas.
-- Polars conserva las transformaciones y validaciones comunes; los resultados
-  siguen la semántica nativa de Polars para tipos, nulos, fechas y agregaciones.
-- Polars no tiene índice pandas: se rechaza `write_csv(index=True)`.
+- IO Polars: solo CSV y Parquet. Excel y SQL son exclusivos de Pandas.
+- Polars no tiene índice: `write_csv(index=True)` no escribe índice.
 
 ## AST de expresiones y notebooks
 
@@ -218,277 +210,98 @@ Ejemplo de nodo:
 }
 ```
 
-`engine/ir/expressions.py` convierte la expresión a un árbol lógico incluido en el
-IR v2, y el emitter lo traduce a expresiones nativas. No usa `eval` ni interpreta
-Python arbitrario. Se admiten literales escalares, `col("nombre")`, `param("nombre")`,
-aritmética, comparaciones simples, `and`/`or`/`not`, condicionales `a if c else b`,
-y las funciones `abs`, `upper`, `lower`, `is_null`, `coalesce`, `year`, `month`, `day`.
-Se rechazan atributos, indexación, imports, lambdas, comprehensions y llamadas
-fuera de esa lista; las expresiones tienen límites de longitud y complejidad.
-La expresión debe ser estática al compilar; sus valores variables usan `param`.
-`fx` crea o reemplaza la columna indicada sin modificar el input.
+`ir/expressions.py` convierte la expresión en un árbol lógico, y cada emitter lo
+traduce a expresiones nativas. No usa `eval`. Se admiten:
 
-Los nodos lógicos históricos conservan su contrato en pandas. No se cambia su
-significado: por ejemplo, `if`/`case` históricos producen máscaras booleanas;
-para valores condicionales nuevos se usa `fx` o `conditional_map`.
+- Literales escalares, `col("nombre")` y `param("nombre")`.
+- Aritmética, comparaciones simples, `and`/`or`/`not` y `a if c else b`.
+- Las funciones `abs`, `upper`, `lower`, `is_null`, `coalesce`, `year`, `month` y `day`.
+
+Se rechaza todo lo demás.
 
 `--notebook` añade `pipeline.ipynb` con tres celdas: definiciones, parámetros y
-datasources editables, y ejecución. El notebook no contiene la llamada argparse
-del script. Completa la segunda celda antes de ejecutar un DAG parametrizado.
-El worker sigue ejecutando `main.py`; el notebook es una salida adicional para
-inspección y ejecución interactiva, con hash propio en el manifest.
+datasources editables, y ejecución. El worker sigue ejecutando `main.py`.
 
 ## Manifest y responsabilidades del worker
 
-`engine/artifacts/manifest.py` produce un contrato versionado con:
+`artifacts/manifest.py` produce un contrato versionado con:
 
 - Identidad y versión del pipeline, versión del IR y hash SHA-256 del plan.
-- Destino, perfil `python-<framework>-v1` y dependencias requeridas.
-- Entrypoint `main.py`, hash SHA-256 del script y argumentos del launcher.
+- Destino (`engine`, `framework`), perfil `python-<framework>-v1` y dependencias.
+- Entrypoint `main.py`, hash SHA-256 de cada archivo y los argumentos del script.
 - JSON Schema de parámetros nombrados, puertos externos y nodos terminales.
 
-La generación es determinista: no agrega timestamps, UUID ni rutas locales del
-builder al artefacto. Los hashes verifican integridad, **no autenticidad**.
-El script necesita Python >=3.10 y las dependencias del perfil indicadas en el
-manifest, preinstaladas en una imagen aprobada; no instala paquetes.
+La generación es determinista: no incluye timestamps, UUID ni rutas locales. Los
+hashes verifican integridad, **no autenticidad**.
 
-El dispatcher debe resolver el perfil a una imagen permitida. El worker debe
-descargar desde almacenamiento autorizado, validar el manifest y los hashes,
-preparar parámetros y secretos, ejecutar con argumentos separados (sin shell)
-y reportar logs y exit code. El script no se autoverifica: la verificación
-corresponde al launcher externo.
+El worker emulado ([`workers/src/workers`](workers/src/workers)) hace lo mínimo
+que haría el pod:
 
-## Dispatcher y Kafka en entorno aislado
+1. `load_artifact` lee `manifest.json`, exige `manifest_version` `1`, el
+   entrypoint `main.py`, solo archivos permitidos, hashes correctos y engine
+   `python`.
+2. `Worker.run` rechaza artefactos de otro framework y comprueba que estén
+   instalados los módulos requeridos (`pandas`/`numpy` o `polars`).
+3. Ejecuta `python main.py --params-file … --datasources-file … --base-dir …`
+   sin shell, con `cwd` en el artefacto, y devuelve el exit code.
 
-`engine/dispatch` implementa el contrato de solicitud, un dispatcher que prepara
-Jobs, un launcher que verifica y ejecuta artefactos y adaptadores Kafka opcionales.
-**No se conecta a Kafka ni Kubernetes al importar o compilar.** No se ha desplegado
-ningún servicio. El adaptador de almacenamiento incluido solo lee `file://` dentro
-de una raíz permitida (incluidos controles sobre symlinks); S3/HTTPS requieren
-implementar el protocolo `ArtifactStore.read(uri)` con autorización y límites
-apropiados. No hay un downloader remoto abierto por defecto.
+Dispatcher, Kafka y Kubernetes quedan fuera de este repositorio.
 
-Crear una solicitud local:
+## DAG JSON normalizado (flujo desconectado)
 
-```bash
-python -m engine.dispatch request \
-  --artifact-dir /tmp/orders-v1-polars \
-  --execution-id orders-run-001 \
-  --params-file /tmp/orders-params.json \
-  --output /tmp/orders-request.json
-```
-
-La solicitud v1 incluye `execution_id`, `manifest_uri`, `manifest_sha256`,
-`parameters` y `datasources`. El dispatcher valida el hash y contrato del manifest,
-y resuelve su perfil contra un registro administrado, nunca contra una imagen o
-comando proporcionados por el mensaje. Ejemplo de registro JSON:
-
-```json
-{
-  "python-polars-v1": {
-    "image": "registry.example/worker-polars:approved",
-    "framework": "polars",
-    "command": ["python"]
-  }
-}
-```
-
-En producción fija imágenes por digest. Los perfiles Pandas y Polars usan
-`python`; el comando del perfil es una validación de contrato.
-
-Guardar ese registro como `/tmp/profiles.json` permite preparar un Job sin enviarlo:
+`export_clean_pipeline(dag_directory)` lee las respuestas guardadas en `dag/`:
+`nodes.json`, `edges.json` y un archivo por operación, nombrado con su ID. Llama
+a `merge_pipeline_clean(edges_json, nodes_json, operations_json)` y escribe
+`dag/pipeline_clean.json`:
 
 ```bash
-python -m engine.dispatch prepare \
-  --request /tmp/orders-request.json \
-  --artifact-root /tmp \
-  --profiles /tmp/profiles.json \
-  --output /tmp/orders-job.json
+PYTHONPATH=script-builder/src python -c "from script_builder.dag.pipeline_clean import export_clean_pipeline; export_clean_pipeline('dag')"
 ```
 
-El Job generado presupone un PVC `pipeline-artifacts` montado en `artifact_root`.
-Antes de desplegar debes configurar PVC, namespace, permisos, recursos y montajes
-de datos/resultados. Las rutas del request deben existir **dentro del pod**. El
-ejemplo de parámetros anterior usa rutas del workspace y hay que adaptarlas a esos
-montajes. `Dispatcher(..., worker_secret_name="worker-kafka")` añade un Secret por
-`envFrom` para la configuración externa. La imagen necesita el launcher y sus
-dependencias mínimas, además del framework. No necesita las operaciones pandas ni
-los emitters.
-El Job no crea por sí mismo un cluster Spark: el perfil/imagen debe configurar
-El Job generado no crea recursos de Kubernetes por sí solo; el callback de
-integración es quien entrega el Job a Kubernetes.
+La salida tiene el mismo formato que `dag/pipeline_test.json`: listas `nodes` y
+`edges`. Cada nodo conserva `id`, `input_ports`/`output_ports` (`id`, `ordinal`),
+`operation` (`id`, `name`) y `parameters` como objeto. Los parámetros se aceptan
+como objeto o como lista de registros `{"name": "column", "value": "sales"}`.
+Las listas vacías o los parámetros ausentes se convierten en `{}`. Los nombres
+duplicados o los registros sin `name`/`value` provocan errores. Se omiten los
+elementos eliminados y las aristas conectadas a ellos.
 
-Para publicación real, instala las dependencias opcionales e inyecta la configuración:
+Los snapshots de `dag/` forman un DAG funcional: tres joins (`Nodo_4`, `name_1`,
+`inner_join`) y un `aggregate` (nodo `avg`: media de `Sales_south_base` por
+`Segment_south_base`). Los tres puertos de entrada externos se mapean a CSV en
+`dag/pipeline_clean_datasources.json`:
 
 ```bash
-python -m pip install -r requirements-workers.txt
-export KAFKA_BOOTSTRAP_SERVERS=broker.example:9093
-# KAFKA_CONFIG_JSON: objeto de configuración librdkafka con TLS/SASL,
-# inyectado desde un secreto; no guardar contraseñas en el DAG ni en Git.
-python -m engine.dispatch publish \
-  --request /tmp/orders-request.json --topic pipeline.executions
+python script-builder/src/main.py dag/pipeline_clean.json [--framework polars]   # → output/pipeline_clean/
+python workers/src/main.py output/pipeline_clean --datasources-file dag/pipeline_clean_datasources.json
 ```
 
-`KafkaPublisher` usa claves `execution_id`, productor idempotente y `acks=all`;
-espera confirmación y propaga errores o timeouts. Para consumir:
+El flujo principal sigue usando `dag/pipeline_test.json` por defecto.
 
-```python
-from engine.dispatch.kafka import KafkaExecutionConsumer, kafka_config_from_env
+Otros DAG de ejemplo: `dag/pipeline.json` (estructural),
+`dag/pipeline_codegen.json` (parametrizado con `$param`) y
+`dag/pipeline_join_text_numeric.json`.
 
-# dispatcher debe tener submit=adaptador_kubernetes configurado explícitamente.
-consumer = KafkaExecutionConsumer(
-    kafka_config_from_env(), "pipeline.executions", "pipeline-dispatchers",
-    dispatcher.dispatch,
-)
-try:
-    while True:
-        consumer.poll_once()
-finally:
-    consumer.close()
-```
-
-La confirmación de offset es manual y posterior a la aceptación por `submit`.
-Si falla un mensaje, el consumidor bloquea nuevas lecturas: hay que cerrarlo y
-recrearlo para reintentar sin confirmar accidentalmente offsets posteriores.
-No se omiten mensajes inválidos; un consumidor de producción debe definir su
-política de reintentos/DLQ. El adaptador Kubernetes debe aceptar idempotentemente
-el nombre de Job determinista y verificar que una ejecución existente corresponde
-al mismo request. No se promete exactly-once: los efectos sobre los datasets y
-la deduplicación de ejecuciones necesitan política persistente externa.
-
-El launcher `python -m engine.dispatch.worker` recibe `EXECUTION_REQUEST`,
-`RUNTIME_PROFILE`, `ARTIFACT_ROOT` y opcionalmente `PIPELINE_BASE_DIR`. Verifica
-manifest, perfil y todos los archivos antes de lanzar un subproceso sin shell.
-Publica `started` y `succeeded`/`failed` con exit code, sin incluir parámetros.
-Si se configura `KAFKA_EVENTS_TOPIC`, usa Kafka con las mismas variables TLS/SASL;
-si no, escribe eventos JSON a stdout para uso aislado. Errores de publicación
-no se silencian.
-
-Los SHA-256 no autentican al productor: restringe escritura al almacenamiento,
-ACL de topics e identidades de ejecución. No pongas secretos en los parámetros
-del mensaje, que también aparecen en la especificación del Job; inyecta secretos
-al worker mediante mecanismos del entorno. Ejecuta artefactos aprobados con
-ServiceAccounts mínimos, límites de recursos y aislamiento de red.
-
-Las pruebas en `tests/test_script_builder.py` comparan DataFrames y archivos
-generados contra `PipelineRunner`, comprueban hashes y determinismo y ejecutan
-el script desde un directorio donde el paquete `engine` no está disponible:
+## Pruebas
 
 ```bash
-python -m pytest -q tests/test_script_builder.py tests/test_pipeline_runner.py
-python -m pytest -q tests/test_polars_codegen.py tests/test_dispatch.py
+python -m pytest -q                     # script-builder/tests + workers/tests
+python -m pytest -q workers/tests       # solo workers
 ```
 
-Las pruebas de Polars usan el runtime real; otras pruebas pueden requerir
-notebook/Jupyter o Kafka simulado, sin necesitar broker ni cluster Kubernetes.
-Instala `requirements-workers.txt` para ejecutar todas las pruebas.
+`pytest.ini` agrega `script-builder/src`, `workers/src` y
+`script-builder/tests` al `PYTHONPATH`. Las pruebas de operaciones ejecutan
+cada operación a través del script generado (`builder_testing.run_operation`).
+Las comparaciones golden usan `reference_run`, que llama a las operaciones
+Pandas directamente, sin generar código.
 
-## DAG JSON normalizado
+## Implementaciones de operaciones
 
-La función de debug `export_clean_pipeline` de `main.py` no consulta la API:
-consume las respuestas guardadas como snapshots en
-`dag/`: `nodes.json`, `edges.json` y los archivos de operación cuyo nombre es su ID. Llama a
-`merge_pipeline_clean(edges_json, nodes_json, operations_json)` y escribe el resultado
-normalizado en `dag/pipeline_clean.json`, sobrescribiendo el archivo en cada generación.
-
-En la función histórica `main()` la construcción del pipeline limpio está activada
-por defecto. Para omitirla desde Python, usa `main(build_pipeline_clean=False)`; el pipeline
-de prueba `dag/pipeline_test.json` seguirá ejecutándose.
-
-La salida tiene el mismo formato que `dag/pipeline.json`: listas `nodes` y `edges`,
-sin duplicar los nodos dentro de las aristas. Cada nodo conserva `id`,
-`input_ports`/`output_ports` (solo `id`, `ordinal`), `operation` (`id`, `name`) y
-`parameters` como objeto. Se conservan también los nodos aislados.
-
-Los parámetros se toman de cada nodo: se aceptan objetos o listas de registros
-`{"name": "column", "value": "sales"}`. Las listas vacías o parámetros ausentes
-se convierten en `{}`; se conservan los tipos JSON, incluidos `false`, `0`, listas,
-objetos y `null`. Las listas con nombres duplicados o sin `name`/`value` provocan
-errores explícitos. No se inventan valores a partir del pipeline de ejemplo.
-
-Se omiten nodos, puertos, operaciones y aristas eliminados; también se omiten las
-aristas conectadas a nodos eliminados. Una operación ausente, un ID de nodo
-duplicado o una arista que referencia un nodo desconocido provoca un error.
-
-La función histórica `main()` regenera `dag/pipeline_clean.json` desde las respuestas guardadas en
-`nodes.json`, `edges.json` y los snapshots de operaciones, pero ejecuta
-`dag/pipeline_test.json`. Este último es un pipeline de prueba independiente y
-no se sobrescribe al generar el pipeline limpio. Para elegir el archivo ejecutado:
-
-```python
-from main import main
-
-main(pipeline_file="pipeline_test.json")
-```
-
-Ese flujo de debug ejecuta `pipeline_test.json`; `pipeline_clean.json` se conserva
-como salida generada para inspección y no se usa para la ejecución de pruebas.
-
-Los snapshots actuales de `dag/nodes.json` contienen cuatro nodos, parámetros
-vacíos y una operación `avg` sin contrato de compilación. No constituyen un
-pipeline ejecutable completo: el builder no inventa parámetros ni sustituye esa
-operación. Usa `dag/pipeline_codegen.json` para el ejemplo multi-framework, o
-`dag/pipeline.json` para el ejemplo estructural pandas. Algunas pruebas históricas
-de API esperan snapshots anteriores con siete nodos; no se alteraron esos datos
-para ocultar esa discrepancia.
-
-## Ejecutar el pipeline local
-
-`dag/pipeline.json` define un DAG estructural para compilación pandas o debug: lee los CSV,
-los une por `Customer ID`, ordena por `Sales_south`, elimina `Discount`, renombra
-`Profit_south`, convierte `Postal Code_south` a texto y escribe
-`output/processed_orders.csv`. Cada nodo declara `operation.name`, sus puertos y
-`parameters`; las aristas conectan puertos por ID. Las rutas son relativas a la raíz
-del proyecto.
-
-El pipeline previo de lectura, join, operaciones de texto y transformaciones
-numéricas se conserva en `dag/pipeline_join_text_numeric.json`.
-
-`PipelineRunner` ordena los nodos por sus aristas y busca cada operación en
-`engine/core/operation_registry.py`, que la dirige al método correspondiente de
-`engine/operations/pandas/`. El registro es la fachada de ejecución local y las
-implementaciones pandas también son la fuente de helpers que extrae el emitter:
-
-| Categoría | Operaciones | Parámetros |
-|---|---|---|
-| io | `read_csv`, `write_csv` | `filepath` |
-| structural | `inner_join`, `outer_join`, `sort`, `add_column`, `drop-column`, `rename-column`, `change-data-type` | `left_on`, `right_on`, `suffixes`; `column`, `direction`; `column_name`, `value`; `column`; `column`, `new_name`; `column`, `new_type` |
-| row | `limit`, `filter` | `limit`; `column`, `operator`, `value` |
-| text | `uppercase`, `lowercase` | `column`, `create_new_column`, `new_column_name` |
-| numeric | `absolute`, `ceiling`, `clean_float`, `floor`, `max`, `min`, `power`, `round` | `column`, `create_new_column`, `new_column_name`; `column_a`, `column_b`, `new_column_name` para `max`/`min`; `value` para `power`; `decimals` para `round` |
-
-`create_new_column: false` (por defecto) actualiza la columna original. Con `true`,
-el resultado va a `new_column_name` o, si no se indica, a una nueva columna
-`<columna>_processed` (con sufijo incremental si ese nombre ya existe).
-
-Las operaciones numéricas usan la misma selección de columna destino. `round` acepta
-`decimals`; en el pipeline de ejemplo, `absolute` y `ceiling` crean columnas nuevas,
-mientras que `floor` y `round` actualizan las columnas originales.
-
-Los joins infieren la clave solo si hay una única columna común; con estos CSV hay que
-indicar `left_on` y `right_on`.
-
-```bash
-python -m pip install -r requirements.txt
-python -m pytest -q
-python main.py dag/pipeline.json --output-dir /tmp/structural-pandas \
-  --pipeline-id structural --pipeline-version 1
-```
-
-## Implementaciones pandas
-
-Las clases `*Operations` de `engine/operations/pandas/` contienen las
-implementaciones pandas. Polars tiene su implementación completa y segmentada en
-`engine/operations/polars/`; una prueba de paridad compara su superficie con el
-catálogo y los dos emitters. `PandasEmitter`
-extrae de ellas únicamente los helpers requeridos y los serializa como funciones
-independientes en el script
-generado; el script no importa `engine.operations` ni depende de este repositorio.
-`PipelineRunner` y `operation_registry` se conservan exclusivamente para pruebas
-y debug local; no forman parte del worker ni del contrato de ejecución. El runner
-ejecuta las implementaciones Python directamente, mientras que los tests del
-emitter validan la extracción y generación del artefacto. No existe un agregador
-`PandasDataProcessor`: el artefacto generado es la interfaz que recibe el worker.
+Las clases `*Operations` de `script-builder/src/script_builder/operations/pandas/`
+y de `.../operations/polars/` son la **fuente** del código generado. Cada carpeta
+está segmentada igual (io, structural, row, text, numeric, date, logical,
+conversion). Cada emitter copia al script solo los métodos que usa el DAG,
+convertidos en funciones independientes. No se ejecutan desde el builder.
 
 Las transformaciones no modifican los DataFrames de entrada, de modo que las ramas
 del DAG permanecen independientes. Los errores de columnas, conversiones y

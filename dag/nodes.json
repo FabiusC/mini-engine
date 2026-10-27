@@ -68,7 +68,27 @@
                     "description": "Joined dataset"
                 }
             ],
-            "parameters": []
+            "parameters": [
+                {
+                    "name": "how",
+                    "value": "inner"
+                },
+                {
+                    "name": "left_on",
+                    "value": "Customer ID"
+                },
+                {
+                    "name": "right_on",
+                    "value": "Customer ID"
+                },
+                {
+                    "name": "suffixes",
+                    "value": [
+                        "_south",
+                        "_central"
+                    ]
+                }
+            ]
         },
         {
             "id": "83449065-633d-46a7-a695-1c9449c95296",
@@ -83,7 +103,7 @@
             "operation_id": "daf931b3-8aca-48ea-8e74-d2323bd9a272",
             "connector_id": null,
             "name": "avg",
-            "description": "Calcular el promedio de una columna numérica",
+            "description": "Calcular el promedio de una columna num\u00e9rica",
             "centroid_position_x": -86.97096180792082,
             "centroid_position_y": -355.4347847933588,
             "notes": "",
@@ -120,7 +140,20 @@
                     "description": "Transformed dataset"
                 }
             ],
-            "parameters": []
+            "parameters": [
+                {
+                    "name": "group_by",
+                    "value": [
+                        "Segment_south_base"
+                    ]
+                },
+                {
+                    "name": "aggregations",
+                    "value": {
+                        "Sales_south_base": "mean"
+                    }
+                }
+            ]
         },
         {
             "id": "13351e06-af30-46cd-a04e-9e1c0a8152ae",
@@ -187,7 +220,27 @@
                     "description": "Joined dataset"
                 }
             ],
-            "parameters": []
+            "parameters": [
+                {
+                    "name": "how",
+                    "value": "inner"
+                },
+                {
+                    "name": "left_on",
+                    "value": "Row ID_central"
+                },
+                {
+                    "name": "right_on",
+                    "value": "Row ID"
+                },
+                {
+                    "name": "suffixes",
+                    "value": [
+                        "_pair",
+                        "_detail"
+                    ]
+                }
+            ]
         },
         {
             "id": "39748bcc-6910-4471-ad73-e86095fc3b7b",
@@ -254,7 +307,33 @@
                     "description": "Joined dataset"
                 }
             ],
-            "parameters": []
+            "parameters": [
+                {
+                    "name": "how",
+                    "value": "inner"
+                },
+                {
+                    "name": "left_on",
+                    "value": [
+                        "Row ID_south",
+                        "Row ID_central"
+                    ]
+                },
+                {
+                    "name": "right_on",
+                    "value": [
+                        "Row ID_south",
+                        "Row ID_central"
+                    ]
+                },
+                {
+                    "name": "suffixes",
+                    "value": [
+                        "_enriched",
+                        "_base"
+                    ]
+                }
+            ]
         }
     ]
 }

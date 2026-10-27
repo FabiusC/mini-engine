@@ -1,6 +1,5 @@
-numpy>=1.24.0
-pandas>=2.0.0
-openpyxl>=3.1.0
-pyarrow>=12.0.0
-SQLAlchemy>=2.0.0
+# Development environment: script builder + both workers + tests.
+-r script-builder/requirements.txt
+-r workers/requirements-pandas.txt
+-r workers/requirements-polars.txt
 pytest>=7.0.0

@@ -1,0 +1,4 @@
+# The builder reads the operation sources with inspect, so it imports both backends.
+numpy>=1.24.0
+pandas>=2.0.0
+polars>=1.0.0
