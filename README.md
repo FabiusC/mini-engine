@@ -14,9 +14,9 @@ API responses / pipeline JSON
 ```
 
 El diagrama de contexto que conecta el builder con la UI/API, Kafka y los workers
-de Kubernetes está en [ARCHITECTURE_DAG_SCRIPT_BUILDER.md](ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
+de Kubernetes está en [docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md](docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md).
 El detalle de los módulos del repositorio y del flujo interno de generación de
-scripts está en [REPOSITORY_FLOW.md](REPOSITORY_FLOW.md).
+scripts está en [docs/REPOSITORY_FLOW.md](docs/REPOSITORY_FLOW.md).
 `merge_pipeline_clean` no se invoca automáticamente desde el CLI ni desde
 `build_artifact`: quien integra el builder debe entregar el pipeline normalizado.
 
