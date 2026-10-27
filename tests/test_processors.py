@@ -1,4 +1,4 @@
-"""Check the public processor API and operation registry."""
+"""Check processor methods and operation registry contracts."""
 
 import inspect
 
@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from engine import PandasDataProcessor
 from engine.processors.conversion_processor import ConversionProcessor
 from engine.processors.date_processor import DateTimeProcessor
 from engine.processors.io_processor import IOProcessor
@@ -57,47 +56,3 @@ def test_processor_instances_do_not_mutate_inputs() -> None:
 	expected = pd.DataFrame({"v": [2, 3]})
 	assert_frame_equal(NumericProcessor().absolute(frame, column="v"), expected)
 	assert frame["v"].tolist() == [-2, 3]
-
-
-@pytest.mark.parametrize("category, processor", [
-	("structure", StructuralProcessor),
-	("text", TextProcessor),
-	("number", NumericProcessor),
-	("row", RowProcessor),
-	("io", IOProcessor),
-	("datetime", DateTimeProcessor),
-	("logical", LogicalProcessor),
-	("conversion", ConversionProcessor),
-])
-def test_pandas_processor_composes_independent_category_instances(category, processor) -> None:
-	first = PandasDataProcessor()
-	second = PandasDataProcessor()
-
-	assert isinstance(getattr(first, category), processor)
-	assert getattr(first, category) is not getattr(second, category)
-
-
-def test_pandas_processor_transforms_and_persists_without_mutating_input(tmp_path) -> None:
-	processor = PandasDataProcessor()
-	frame = pd.DataFrame({
-		"name": [" Ana ", " Luis "],
-		"amount": [-2, 3],
-		"date": ["2024-02-29", "2025-01-01"],
-		"note": [None, "ok"],
-	})
-	before = frame.copy(deep=True)
-
-	result = processor.text.trim(frame, column="name")
-	result = processor.number.absolute(result, column="amount")
-	result = processor.datetime.extract_date_part(result, column="date", part="year")
-	result = processor.logical.coalesce(result, column="note", default_value="missing")
-	result = processor.structure.rename_column(result, column="date", new_name="year")
-	result = processor.row.filter_rows(result, column="amount", operator=">", value=2)
-	path = tmp_path / "result.csv"
-	processor.io.write_csv(result, filepath=path)
-	persisted = processor.io.read_csv(filepath=path)
-
-	assert persisted.to_dict("records") == [
-		{"name": "Luis", "amount": 3, "year": 2025, "note": "ok"},
-	]
-	assert_frame_equal(frame, before)

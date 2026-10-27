@@ -1,14 +1,16 @@
-"""Build a DAG from saved response snapshots and run the local pipeline."""
+"""Compile worker artifacts by default; retain legacy functions for local debugging."""
+
+from __future__ import annotations
 
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pandas as pd
+if TYPE_CHECKING:
+	import pandas as pd
 
 from engine.core.pipeline_clean import merge_pipeline_clean
-from engine.core.pipeline_runner import PipelineRunner
 
 
 def export_clean_pipeline(dag_directory: Path) -> None:
@@ -45,6 +47,8 @@ def run_pipeline(
 	parameters: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> None:
 	"""Execute a pipeline file and report each terminal node's result."""
+	from engine.core.pipeline_runner import PipelineRunner
+
 	pipeline = json.loads(pipeline_path.read_text(encoding="utf-8"))
 	# File paths inside the pipeline are relative to the project root.
 	runner = PipelineRunner(pipeline, base_dir=project_root)
@@ -73,4 +77,6 @@ def main(
 
 
 if __name__ == "__main__":
-	main()
+	from engine.codegen.__main__ import main as compile_main
+
+	compile_main()

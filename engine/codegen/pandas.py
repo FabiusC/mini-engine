@@ -1,0 +1,184 @@
+"""Emit explicit calls and only the trusted pandas helpers used by a plan."""
+
+import ast
+import inspect
+import textwrap
+from collections.abc import Callable
+from typing import Any
+
+from engine.codegen import runtime
+from engine.ir.catalog import OPERATIONS
+from engine.ir.plan import ExecutionPlan
+from engine.ir.validate import parameter_reference, validate_constraints, validate_value
+from engine.ir.targets import validate_target_parameters
+from engine.ir.expressions import render_expression
+from engine.processors.date_processor import DateTimeProcessor
+from engine.processors.logical_processor import LogicalProcessor
+from engine.processors.io_processor import IOProcessor
+from engine.processors.row_processor import RowProcessor
+from engine.processors.structural_processor import StructuralProcessor
+
+
+_IMPLEMENTATIONS: dict[str, tuple[type, str]] = {
+	"input": (IOProcessor, "input_data"),
+	"output": (IOProcessor, "output_data"),
+	"read_csv": (IOProcessor, "read_csv"),
+	"write_csv": (IOProcessor, "write_csv"),
+	"filter": (RowProcessor, "filter_rows"),
+	"limit": (RowProcessor, "limit_rows"),
+	"sort": (RowProcessor, "sort_rows"),
+	"sample": (RowProcessor, "sample"),
+	**{
+		name: (StructuralProcessor, name)
+		for name in (
+			"join", "union", "add_column", "drop_column", "rename_column",
+			"change_data_type", "aggregate", "pivot",
+		)
+	},
+}
+for _name in (
+	"date_parser", "date_parse", "date_trunc", "day", "month", "year", "week", "quarter",
+	"iso_quarter", "iso_week", "iso_week_day", "iso_year", "now", "today", "date_add",
+	"date_sub", "date_diff", "date_name", "extract_date_part",
+):
+	_IMPLEMENTATIONS[_name] = (DateTimeProcessor, _name)
+for _name in ("logical", "coalesce", "conditional_map"):
+	_IMPLEMENTATIONS[_name] = (LogicalProcessor, _name)
+_OWNERS = {owner.__name__: owner for owner in (IOProcessor, RowProcessor, StructuralProcessor, DateTimeProcessor, LogicalProcessor)}
+
+
+def _function_name(owner: type, method: str) -> str:
+	return f"_{owner.__name__}_{method}"
+
+
+class _MethodToFunction(ast.NodeTransformer):
+	def __init__(self, owner: type) -> None:
+		self.owner = owner
+		self.dependencies: set[tuple[type, str]] = set()
+
+	def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
+		if isinstance(node.value, ast.Name) and node.value.id == "self":
+			value = getattr(self.owner, node.attr)
+			if not callable(value):
+				if hasattr(value, "pattern"):
+					return ast.parse(f"re.compile({value.pattern!r}, {int(value.flags)})", mode="eval").body
+				return ast.parse(repr(value), mode="eval").body
+			self.dependencies.add((self.owner, node.attr))
+			return ast.copy_location(ast.Name(id=_function_name(self.owner, node.attr), ctx=ast.Load()), node)
+		if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+			owner = _OWNERS.get(node.value.func.id)
+			if owner is not None and not node.value.args and not node.value.keywords:
+				self.dependencies.add((owner, node.attr))
+				return ast.copy_location(ast.Name(id=_function_name(owner, node.attr), ctx=ast.Load()), node)
+		return self.generic_visit(node)
+
+
+def _helper_sources(methods: set[tuple[type, str]]) -> list[str]:
+	"""Lower trusted processor methods to free functions, including self-call dependencies."""
+	pending = set(methods)
+	sources: dict[str, str] = {}
+	while pending:
+		owner, method = min(pending, key=lambda item: (item[0].__name__, item[1]))
+		pending.remove((owner, method))
+		name = _function_name(owner, method)
+		if name in sources:
+			continue
+		tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(owner, method))))
+		function = tree.body[0]
+		if not isinstance(function, ast.FunctionDef) or function.args.args[0].arg != "self":
+			raise ValueError(f"Cannot emit processor method {owner.__name__}.{method}")
+		function.name = name
+		function.args.args.pop(0)
+		transformer = _MethodToFunction(owner)
+		transformer.visit(function)
+		ast.fix_missing_locations(tree)
+		sources[name] = ast.unparse(tree)
+		pending.update(transformer.dependencies)
+	return [sources[name] for name in sorted(sources)]
+
+
+def _source(function: Callable[..., Any]) -> str:
+	return textwrap.dedent(inspect.getsource(function)).strip()
+
+
+class PandasEmitter:
+	"""Generate a standalone Python module with run() and a command-line entrypoint."""
+
+	engine = "python"
+	framework = "pandas"
+	implementations = _IMPLEMENTATIONS
+	backend_imports = "import pandas as pd\nfrom pandas.api.types import is_bool_dtype\nimport operator\nimport re"
+	frame_type = "pd.DataFrame"
+	reader = (IOProcessor, "read_csv")
+	stats: Callable[..., Any] | None = None
+
+	def emit(self, plan: ExecutionPlan) -> str:
+		if plan.framework != self.framework:
+			raise ValueError(f"Emitter {self.framework} cannot emit plan for {plan.framework}")
+		methods = {self.implementations[step.operation] for step in plan.steps if step.operation != "fx"}
+		if plan.datasource_port_ids:
+			methods.add(self.reader)
+		sections = [
+			f'"""Generated {self.framework} pipeline. Do not edit; regenerate from its DAG."""',
+			"from __future__ import annotations\n\n"
+			"import argparse\nimport json\nfrom collections.abc import Callable, Mapping, Sequence\n"
+			"from pathlib import Path\nfrom typing import Any\n\n" + self.backend_imports,
+			*(_source(function) for function in (
+				parameter_reference, validate_value, validate_constraints, validate_target_parameters,
+				runtime.resolve_parameters, runtime.step_parameters,
+				runtime.check_context, runtime.script_main,
+			)),
+			*([_source(runtime._as_series)] if self.framework == "pandas" else []),
+			*([_source(self.stats)] if self.stats else []),
+			*_helper_sources(methods),
+		]
+		lines = [
+			"def run(datasources: Mapping[str, Any] | None = None, "
+			"parameters: Mapping[str, Any] | None = None, "
+			"base_dir: str | Path | None = None) -> dict[str, Any]:",
+			"    datasources = {} if datasources is None else datasources",
+			"    parameters = {} if parameters is None else parameters",
+			f"    check_context(datasources, parameters, {plan.datasource_port_ids!r}, {plan.runtime_parameters!r}, {self.frame_type})",
+		]
+		# Validate every parameter before any node can perform IO.
+		for index, step in enumerate(plan.steps):
+			lines.append(
+				f"    p_{index} = step_parameters({step.parameters!r}, parameters, "
+				f"{OPERATIONS[step.operation].parameters!r}, {step.operation!r}, {step.id!r}, base_dir, {self.framework!r})"
+			)
+		variables: dict[str, str] = {}
+		for index, step in enumerate(plan.steps):
+			inputs = [
+				variables[binding.node_id] if binding.node_id is not None
+				else f"datasources[{binding.port_id!r}]"
+				for binding in step.inputs
+			]
+			if step.operation == "union":
+				inputs = [f"[{', '.join(inputs)}]"]
+			if step.operation == "fx":
+				if step.expression is None:
+					raise ValueError("fx step requires a compiled expression")
+				expression = render_expression(step.expression, self.framework, inputs[0])
+				if self.framework == "pandas":
+					lines.extend([
+						f"    n_{index} = {inputs[0]}.copy()",
+						f"    n_{index}[p_{index}['column_name']] = {expression}",
+					])
+				elif self.framework == "polars":
+					lines.append(f"    n_{index} = {inputs[0]}.with_columns(({expression}).alias(p_{index}['column_name']))")
+				else:
+					lines.append(f"    n_{index} = {inputs[0]}.withColumn(p_{index}['column_name'], {expression})")
+				variables[step.id] = f"n_{index}"
+				continue
+			function = _function_name(*self.implementations[step.operation])
+			arguments = ", ".join([*inputs, f"**p_{index}"])
+			variables[step.id] = f"n_{index}"
+			lines.append(f"    n_{index} = {function}({arguments})")
+		lines.append("    return {" + ", ".join(f"{key!r}: {value}" for key, value in variables.items()) + "}")
+		sections.append("\n".join(lines))
+		reader = _function_name(*self.reader) if plan.datasource_port_ids else "None"
+		stats = self.stats.__name__ if self.stats else "None"
+		sections.append(f'if __name__ == "__main__":\n    script_main(run, {reader}, {stats})')
+		source = "\n\n\n".join(sections) + "\n"
+		compile(source, f"<generated-{self.framework}-pipeline>", "exec")
+		return source

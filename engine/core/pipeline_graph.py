@@ -52,7 +52,7 @@ def topological_order(
 		if node_id in visited:
 			return
 		visiting.add(node_id)
-		for source in dependencies[node_id]:
+		for source in sorted(dependencies[node_id]):
 			visit(source)
 		visiting.remove(node_id)
 		visited.add(node_id)

@@ -1,0 +1,45 @@
+{
+    "nodes": [
+        {
+            "id": "read",
+            "operation": {"name": "read_csv"},
+            "input_ports": [],
+            "output_ports": [{"id": "read_out", "ordinal": 0}],
+            "parameters": {"filepath": {"$param": "source_csv"}}
+        },
+        {
+            "id": "filter",
+            "operation": {"name": "filter"},
+            "input_ports": [{"id": "filter_in", "ordinal": 0}],
+            "output_ports": [{"id": "filter_out", "ordinal": 0}],
+            "parameters": {"column": "Sales", "operator": ">", "value": 0}
+        },
+        {
+            "id": "sort",
+            "operation": {"name": "sort"},
+            "input_ports": [{"id": "sort_in", "ordinal": 0}],
+            "output_ports": [{"id": "sort_out", "ordinal": 0}],
+            "parameters": {"column": "Sales", "direction": "desc"}
+        },
+        {
+            "id": "limit",
+            "operation": {"name": "limit"},
+            "input_ports": [{"id": "limit_in", "ordinal": 0}],
+            "output_ports": [{"id": "limit_out", "ordinal": 0}],
+            "parameters": {"limit": {"$param": "row_limit"}}
+        },
+        {
+            "id": "write",
+            "operation": {"name": "write_csv"},
+            "input_ports": [{"id": "write_in", "ordinal": 0}],
+            "output_ports": [],
+            "parameters": {"filepath": {"$param": "output_csv"}}
+        }
+    ],
+    "edges": [
+        {"id": "read_filter", "source_node_id": "read", "source_output_port_id": "read_out", "target_node_id": "filter", "target_input_port_id": "filter_in"},
+        {"id": "filter_sort", "source_node_id": "filter", "source_output_port_id": "filter_out", "target_node_id": "sort", "target_input_port_id": "sort_in"},
+        {"id": "sort_limit", "source_node_id": "sort", "source_output_port_id": "sort_out", "target_node_id": "limit", "target_input_port_id": "limit_in"},
+        {"id": "limit_write", "source_node_id": "limit", "source_output_port_id": "limit_out", "target_node_id": "write", "target_input_port_id": "write_in"}
+    ]
+}
