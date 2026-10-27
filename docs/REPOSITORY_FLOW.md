@@ -119,7 +119,7 @@ sequenceDiagram
     participant Worker as workers/src/main.py
     participant Script as main.py generado
 
-    Dev->>CLI: python script-builder/src/main.py [--framework polars]
+    Dev->>CLI: python script-builder/src/main.py
     CLI->>CLI: lee dag/pipeline_test.json
     CLI->>Builder: build_artifact(pipeline, output/pipeline_test, overwrite=True)
     Builder->>Plan: build_plan(pipeline, engine, framework)

@@ -272,7 +272,8 @@ Los snapshots de `dag/` forman un DAG funcional: tres joins (`Nodo_4`, `name_1`,
 `dag/pipeline_clean_datasources.json`:
 
 ```bash
-python script-builder/src/main.py dag/pipeline_clean.json [--framework polars]   # → output/pipeline_clean/
+python script-builder/src/main.py dag/pipeline_clean.json
+python script-builder/src/main.py dag/pipeline_clean.json --framework polars
 python workers/src/main.py output/pipeline_clean --datasources-file dag/pipeline_clean_datasources.json
 ```
 

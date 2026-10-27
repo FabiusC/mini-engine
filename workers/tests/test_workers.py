@@ -1,5 +1,6 @@
 """Worker emulation: verify manifest.json, pick the matching worker and run the generated main.py."""
 
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -33,6 +34,19 @@ def test_worker_runs_artifact_for_its_framework(workspace: Path, worker) -> None
 	artifact = make_artifact(workspace / "artifact", worker.framework)
 	assert worker().run(artifact, base_dir=workspace) == 0
 	assert len(pd.read_csv(workspace / OUTPUT)) == 1627
+
+
+@pytest.mark.parametrize("notebook", [False, True])
+def test_artifact_hashes_match_exact_written_bytes(workspace: Path, notebook: bool) -> None:
+	artifact = workspace / "artifact"
+	build_artifact(
+		PIPELINE, artifact, pipeline_id="pipeline_test", pipeline_version="1",
+		notebook=notebook,
+	)
+	manifest = load_artifact(artifact)
+	for item in manifest["files"]:
+		content = (artifact / item["path"]).read_bytes()
+		assert hashlib.sha256(content).hexdigest() == item["sha256"]
 
 
 def test_worker_rejects_artifact_for_another_framework(workspace: Path) -> None:

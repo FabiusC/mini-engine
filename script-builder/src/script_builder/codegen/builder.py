@@ -34,9 +34,9 @@ def build_artifact(
 	# Remove the publication marker first so a partially replaced artifact is never seen as complete.
 	for name in ("manifest.json", "main.py", "pipeline.ipynb"):
 		(directory / name).unlink(missing_ok=True)
-	(directory / "main.py").write_text(script, encoding="utf-8")
+	(directory / "main.py").write_bytes(script.encode("utf-8"))
 	if notebook_source is not None:
-		(directory / "pipeline.ipynb").write_text(notebook_source, encoding="utf-8")
+		(directory / "pipeline.ipynb").write_bytes(notebook_source.encode("utf-8"))
 	# Write the manifest last: it is the publication marker for a complete artifact.
 	(directory / "manifest.json").write_text(
 		json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8",
