@@ -57,8 +57,8 @@ def build_manifest(
 	plan: ExecutionPlan,
 	script: str,
 	*,
-	pipeline_id: str,
-	pipeline_version: str,
+	pipeline_id: str = "pipeline",
+	pipeline_version: str = "1",
 	notebook: str | None = None,
 ) -> dict[str, Any]:
 	if not isinstance(pipeline_id, str) or not pipeline_id:
