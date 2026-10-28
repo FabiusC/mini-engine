@@ -5,6 +5,7 @@ from typing import Any
 
 
 def parameter_reference(value: Any) -> str | None:
+	# Returns the parameter name when value is a placeholder {"$param": "name"}, else None; malformed ones raise.
 	if isinstance(value, dict) and "$param" in value:
 		if set(value) != {"$param"} or not isinstance(value["$param"], str) or not value["$param"]:
 			raise ValueError("A parameter reference must be exactly {'$param': '<nonempty name>'}")
@@ -21,11 +22,13 @@ def validate_value(
 	"""Validate the supported JSON Schema subset, optionally accepting placeholders."""
 	if allow_references and parameter_reference(value) is not None:
 		return
+	# allOf: the value must satisfy each sub-schema (the manifest builds these from several usages).
 	for constraint in schema.get("allOf", []):
 		validate_value(value, constraint, label, allow_references)
 	kinds = schema.get("type")
 	if isinstance(kinds, str):
 		kinds = [kinds]
+	# Type check via a lookup table of JSON type -> predicate; bool is excluded from int/number because bool subclasses int.
 	matches = {
 		"null": value is None,
 		"boolean": isinstance(value, bool),
@@ -50,6 +53,7 @@ def validate_value(
 		for index, item in enumerate(value):
 			validate_value(item, schema.get("items", {}), f"{label}[{index}]", allow_references)
 	if isinstance(value, dict):
+		# Objects: check required keys, reject unknown keys when additionalProperties is false, then recurse per key.
 		if len(value) < schema.get("minProperties", 0):
 			raise ValueError(f"{label} must not be empty")
 		for name in schema.get("required", []):

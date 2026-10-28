@@ -45,6 +45,7 @@ class ExecutionPlan:
 
 
 def _references(value: Any) -> set[str]:
+	# Collects every {"$param": name} name found anywhere inside a nested parameter value.
 	reference = parameter_reference(value)
 	if reference is not None:
 		return {reference}
@@ -56,6 +57,8 @@ def _references(value: Any) -> set[str]:
 
 
 def _ports(nodes: Mapping[str, Any], kind: str) -> dict[str, tuple[str, int]]:
+	# Builds {port_id: (owner node id, ordinal)} for "input_ports" or "output_ports", enforcing globally unique
+	# port ids and per-node unique non-negative integer ordinals (bool is rejected because it subclasses int).
 	ports: dict[str, tuple[str, int]] = {}
 	for node_id, node in nodes.items():
 		ordinals: set[int] = set()
@@ -81,6 +84,7 @@ def build_plan(
 	framework: str = "pandas",
 ) -> ExecutionPlan:
 	"""Validate and compile without loading data or importing a dataframe framework."""
+	# Phase 1: shape checks on the target and the raw pipeline JSON.
 	if engine != "python" or framework not in ("pandas", "polars"):
 		raise ValueError(f"Unsupported target {engine}/{framework}")
 	if not isinstance(pipeline, Mapping):
@@ -93,6 +97,7 @@ def build_plan(
 			raise ValueError("Node must have a nonempty string ID")
 	if not isinstance(pipeline.get("edges"), list) or not all(isinstance(edge, dict) for edge in pipeline["edges"]):
 		raise ValueError("Pipeline edges must be a list of objects")
+	# Phase 2: resolve nodes and index ports; each node may expose at most one output dataframe.
 	nodes = collect_nodes(pipeline)
 	if not nodes:
 		raise ValueError("Pipeline must contain at least one node")
@@ -102,6 +107,8 @@ def build_plan(
 	output_ports = _ports(nodes, "output_ports")
 	if any(len(node.get("output_ports", [])) > 1 for node in nodes.values()):
 		raise ValueError("This builder supports only one output dataframe per node")
+	# Phase 3: validate every edge against the ports. incoming maps target input port -> producer node;
+	# has_consumers marks nodes whose output is used downstream (the rest are the pipeline outputs).
 	incoming: dict[str, str] = {}
 	has_consumers: set[str] = set()
 	for edge in pipeline["edges"]:
@@ -117,7 +124,9 @@ def build_plan(
 			raise ValueError(f"Multiple edges target input port {target_port!r}")
 		incoming[target_port] = source
 		has_consumers.add(source)
+	# Phase 4: order nodes so producers come first (nodes are sorted by id for a deterministic result).
 	order = topological_order(dict(sorted(nodes.items())), pipeline["edges"])
+	# Phase 5: turn each node into a Step: resolve the operation (aliases included), check target support and arity.
 	steps = []
 	references: set[str] = set()
 	for node_id in order:
@@ -135,10 +144,12 @@ def build_plan(
 		raw = node.get("parameters", {})
 		if not isinstance(raw, dict):
 			raise ValueError(f"Node {node_id!r} parameters must be an object")
+		# Round-trip through JSON: deep copy that also rejects NaN/Infinity and non-JSON types; sort_keys for determinism.
 		try:
 			parameters = json.loads(json.dumps(raw, allow_nan=False, sort_keys=True))
 		except (TypeError, ValueError) as error:
 			raise ValueError(f"Node {node_id!r} parameters must be finite JSON values") from error
+		# Aliases like "left_join" or "and" are shortcuts that imply a default parameter of their canonical operation.
 		if name.endswith("_join") and name != "join":
 			parameters.setdefault("how", name.removesuffix("_join"))
 		if spec.name == "logical" and name != "logical":
@@ -148,17 +159,20 @@ def build_plan(
 		if spec.name == "fx":
 			expression = parse_expression(parameters["expression"])
 			references.update(expression_parameters(expression))
+		# Parameters containing $param placeholders cannot be checked yet; the generated script checks them at runtime.
 		node_references = _references(parameters)
 		if not node_references:
 			validate_constraints(spec.name, parameters)
 			validate_target_parameters(framework, spec.name, parameters)
 		references.update(node_references)
+		# An input port with an incoming edge reads the producer's output; otherwise it is an external datasource.
 		bindings = tuple(
 			InputBinding(node_id=incoming[port["id"]]) if port["id"] in incoming
 			else InputBinding(port_id=port["id"])
 			for port in ports
 		)
 		steps.append(Step(node_id, spec.name, bindings, parameters, expression))
+	# Outputs = nodes nobody consumes; datasource ports = input ports without an edge; runtime parameters = all $param names.
 	return ExecutionPlan(
 		tuple(steps),
 		tuple(node_id for node_id in order if node_id not in has_consumers),

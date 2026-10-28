@@ -31,6 +31,7 @@ def _parameters(raw: Any, node_id: str) -> dict[str, Any]:
 	if not isinstance(raw, list):
 		raise ValueError(f"Node {node_id!r} parameters must be an object or a name/value list")
 	parameters = {}
+	# API format: [{"name": ..., "value": ..., "is_deleted": ...}] -> {name: value}, skipping deleted entries.
 	for parameter in raw:
 		if not isinstance(parameter, Mapping):
 			raise ValueError(f"Node {node_id!r} parameter must be an object")
@@ -51,6 +52,7 @@ def merge_pipeline_clean(
 	operations_json: Any,
 ) -> dict[str, list[dict[str, Any]]]:
 	"""Build the runner's nodes/edges schema without inventing input configuration."""
+	# Index active operations by id, keeping only id and name, so nodes can look up their operation.
 	operations = {
 		operation.get("id"): {
 			"id": operation.get("id"),
@@ -59,6 +61,7 @@ def merge_pipeline_clean(
 		for operation in _records(operations_json, "operations")
 		if operation.get("id") is not None and not operation.get("is_deleted")
 	}
+	# Pass 1 - nodes: skip deleted ones (remembering their ids), validate ids/operations, keep non-deleted ports.
 	nodes: dict[str, dict[str, Any]] = {}
 	deleted_nodes = set()
 	for node in _records(nodes_json, "nodes"):
@@ -94,6 +97,7 @@ def merge_pipeline_clean(
 			"operation": operation,
 			"parameters": _parameters(node.get("parameters"), node_id),
 		}
+	# Pass 2 - edges: drop deleted edges and edges touching deleted nodes; any other unknown endpoint is an error.
 	clean_edges = []
 	for edge in _records(edges_json, "edges"):
 		if edge.get("is_deleted"):
@@ -123,6 +127,7 @@ def export_clean_pipeline(dag_directory: str | Path) -> dict[str, list[dict[str,
 	dag_directory = Path(dag_directory)
 	nodes_json = json.loads((dag_directory / "nodes.json").read_text(encoding="utf-8"))
 	edges_json = json.loads((dag_directory / "edges.json").read_text(encoding="utf-8"))
+	# Collect the operation ids used by active nodes; each has its own <operation_id>.json snapshot.
 	operation_ids = {
 		node["operation_id"]
 		for node in nodes_json.get("data", [])

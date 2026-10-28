@@ -5,12 +5,14 @@ from typing import Any
 
 
 def emit_notebook(script: str, framework: str) -> str:
+	# Builds one nbformat 4.5 code cell; a fixed id keeps the output deterministic.
 	def cell(cell_id: str, code: str) -> dict[str, Any]:
 		return {
 			"cell_type": "code", "id": cell_id, "metadata": {},
 			"execution_count": None, "outputs": [], "source": code.splitlines(keepends=True),
 		}
 
+	# Drop the `if __name__ == "__main__"` launcher: rsplit(..., 1) cuts at its last occurrence and [0] keeps the code before it.
 	definitions = script.rsplit('if __name__ == "__main__":', 1)[0].rstrip() + "\n"
 	notebook = {
 		"nbformat": 4,
@@ -20,6 +22,7 @@ def emit_notebook(script: str, framework: str) -> str:
 			"language_info": {"name": "python"},
 			"pipeline": {"framework": framework},
 		},
+		# Cell 1 defines the pipeline, cell 2 holds editable inputs, cell 3 runs it.
 		"cells": [
 			cell("pipeline-definitions", definitions),
 			cell("runtime-inputs", "parameters = {}\ndatasources = {}\nbase_dir = None\n"),

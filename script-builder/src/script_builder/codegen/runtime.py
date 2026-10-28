@@ -13,6 +13,7 @@ from script_builder.ir.targets import validate_target_parameters
 
 
 def resolve_parameters(value: Any, parameters: Mapping[str, Any]) -> Any:
+	# Recursively replaces every {"$param": name} placeholder with its runtime value, rebuilding dicts and lists.
 	reference = parameter_reference(value)
 	if reference is not None:
 		return parameters[reference]
@@ -32,10 +33,12 @@ def step_parameters(
 	base_dir: str | Path | None,
 	framework: str = "pandas",
 ) -> dict[str, Any]:
+	# Substitute placeholders, then re-validate: runtime values were unknown at compile time.
 	resolved = resolve_parameters(stored, parameters)
 	validate_value(resolved, schema, f"Node {node_id!r}")
 	validate_constraints(operation, resolved)
 	validate_target_parameters(framework, operation, resolved)
+	# Anchor relative local paths to base_dir; URLs ("://"), absolute paths and SQL connection strings are left as-is.
 	for key in ("filepath", "filepath_or_connection", "output_path"):
 		if key == "filepath_or_connection" and resolved.get("source_type") == "sql":
 			continue
@@ -52,6 +55,7 @@ def check_context(
 	required_parameters: tuple[str, ...],
 	frame_type: type,
 ) -> None:
+	# Fail fast, before any node runs: validate the shape of inputs, parameter names/values and datasource types.
 	if not isinstance(parameters, Mapping) or not isinstance(datasources, Mapping):
 		raise ValueError("parameters and datasources must be mappings")
 	if not all(isinstance(name, str) for name in parameters):
@@ -60,10 +64,12 @@ def check_context(
 		json.dumps(dict(parameters), allow_nan=False)
 	except (TypeError, ValueError) as error:
 		raise ValueError("Runtime parameters must be finite JSON values") from error
+	# Set differences: parameters must match the declared ones exactly (no missing, no extra).
 	missing = set(required_parameters) - set(parameters)
 	unknown = set(parameters) - set(required_parameters)
 	if missing or unknown:
 		raise ValueError(f"Invalid runtime parameters: missing={sorted(missing)}, unknown={sorted(unknown)}")
+	# Each external input port needs a dataframe of the backend's type.
 	for port_id in required_ports:
 		if port_id not in datasources:
 			raise ValueError(f"Missing datasource for input port {port_id!r}")
@@ -76,12 +82,14 @@ def script_main(
 	read_datasource: Callable[[str | Path], Any] | None = None,
 	frame_stats: Callable[[Any], dict[str, int]] | None = None,
 ) -> None:
+	# Entry point of the generated script: parse flags, load inputs, run the pipeline, print a JSON summary.
 	parser = argparse.ArgumentParser(description="Execute a generated pandas pipeline")
 	parser.add_argument("--params-file", type=Path)
 	parser.add_argument("--datasources-file", type=Path, help="JSON object mapping external port IDs to CSV paths")
 	parser.add_argument("--base-dir", type=Path)
 	args = parser.parse_args()
 	parameters = json.loads(args.params_file.read_text(encoding="utf-8")) if args.params_file else {}
+	# Datasources file maps external port ids to file paths; each is read into a dataframe, relative paths vs --base-dir.
 	datasources = {}
 	if args.datasources_file:
 		if read_datasource is None:
@@ -95,6 +103,7 @@ def script_main(
 				filepath = args.base_dir / filepath
 			datasources[port_id] = read_datasource(filepath)
 	results = run_pipeline(datasources=datasources, parameters=parameters, base_dir=args.base_dir)
+	# Print {node_id: {rows, columns}} (or backend-specific stats) as stable, sorted JSON.
 	print(json.dumps({
 		node_id: frame_stats(frame) if frame_stats else {"rows": len(frame), "columns": len(frame.columns)}
 		for node_id, frame in results.items()
@@ -102,4 +111,5 @@ def script_main(
 
 
 def _as_series(value: Any, frame: pd.DataFrame) -> pd.Series:
+	# Expressions may yield a scalar; broadcast it to a column aligned with the frame's index.
 	return value if isinstance(value, pd.Series) else pd.Series(value, index=frame.index)

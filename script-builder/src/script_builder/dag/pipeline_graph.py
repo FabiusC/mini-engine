@@ -10,11 +10,13 @@ def collect_nodes(pipeline: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
 		raise ValueError("Pipeline JSON must contain an edges list")
 	declared = pipeline.get("nodes")
 	if declared is not None:
+		# Format A: an explicit top-level `nodes` list, indexed by id; a size mismatch means duplicate ids.
 		nodes = {node["id"]: node for node in declared}
 		if len(nodes) != len(declared):
 			raise ValueError("Pipeline node IDs must be unique")
 		return nodes
 
+	# Format B: no `nodes` list, so rebuild the node set from the nodes embedded in each edge's endpoints.
 	nodes: dict[str, dict[str, Any]] = {}
 	for edge in pipeline["edges"]:
 		for endpoint in ("source_node", "target_node"):
@@ -35,6 +37,7 @@ def topological_order(
 	edges: list[Mapping[str, Any]],
 ) -> list[str]:
 	"""Return node IDs with every producer before its consumers."""
+	# dependencies[node] = ids of the nodes that must run before it (its producers).
 	dependencies: dict[str, set[str]] = {node_id: set() for node_id in nodes}
 	for edge in edges:
 		source, target = edge["source_node_id"], edge["target_node_id"]
@@ -42,6 +45,8 @@ def topological_order(
 			raise ValueError(f"Edge {edge.get('id')!r} references an unknown node")
 		dependencies[target].add(source)
 
+	# Depth-first topological sort: `visiting` is the current recursion path (revisiting it means a cycle),
+	# `visited` holds finished nodes. A node is appended only after all its producers, giving producer-first order.
 	ordered: list[str] = []
 	visiting: set[str] = set()
 	visited: set[str] = set()
@@ -52,7 +57,7 @@ def topological_order(
 		if node_id in visited:
 			return
 		visiting.add(node_id)
-		for source in sorted(dependencies[node_id]):
+		for source in sorted(dependencies[node_id]):  # sorted => deterministic order
 			visit(source)
 		visiting.remove(node_id)
 		visited.add(node_id)

@@ -5,6 +5,7 @@ import math
 from typing import Any
 
 
+# Allowlists: only these operators and functions (name -> arity) are accepted in fx expressions.
 _BINARY = {
 	ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/",
 	ast.Mod: "%", ast.Pow: "**",
@@ -15,6 +16,7 @@ _CALLS = {"abs": 1, "upper": 1, "lower": 1, "is_null": 1, "coalesce": 2, "year":
 
 def parse_expression(source: str) -> dict[str, Any]:
 	"""Only literal values, explicit col/param calls and allowlisted operators."""
+	# Parse with Python's own parser (eval mode = single expression), never executing it; limit size and node count.
 	if not isinstance(source, str) or not source or len(source) > 4096:
 		raise ValueError("expression must be a nonempty string of at most 4096 characters")
 	try:
@@ -25,6 +27,8 @@ def parse_expression(source: str) -> dict[str, Any]:
 		raise ValueError("Expression is too complex")
 
 	def convert(node: ast.AST) -> dict[str, Any]:
+		# Recursively converts each allowed Python AST node into a {"kind": ..., ...} dict; anything else is rejected.
+		# Order matters: literals, col()/param()/allowed calls, binary ops, comparisons, and/or, unary, a if c else b.
 		if isinstance(node, ast.Constant) and isinstance(node.value, (str, int, float, bool, type(None))):
 			if isinstance(node.value, float) and not math.isfinite(node.value):
 				raise ValueError("Expression literals must be finite")
@@ -53,6 +57,7 @@ def parse_expression(source: str) -> dict[str, Any]:
 
 
 def expression_parameters(tree: dict[str, Any]) -> set[str]:
+	# Names of every param(...) in the tree: a leaf returns its name, other nodes union their children's names.
 	if tree["kind"] == "param":
 		return {tree["name"]}
 	return set().union(*(expression_parameters(arg) for arg in tree.get("args", [])))
@@ -61,6 +66,7 @@ def expression_parameters(tree: dict[str, Any]) -> set[str]:
 def render_expression(tree: dict[str, Any], framework: str, frame: str) -> str:
 	"""Render trusted syntax only; names and values are always quoted literals."""
 	kind = tree["kind"]
+	# Leaves: literals/params are wrapped (pl.lit / F.lit) for polars and pyspark; pandas uses plain Python values.
 	if kind in ("literal", "param"):
 		value = repr(tree["value"]) if kind == "literal" else f"parameters[{tree['name']!r}]"
 		return value if framework == "pandas" else f"pl.lit({value})" if framework == "polars" else f"F.lit({value})"
@@ -70,6 +76,7 @@ def render_expression(tree: dict[str, Any], framework: str, frame: str) -> str:
 			return f"{frame}[{name!r}]"
 		return f"pl.col({name!r})" if framework == "polars" else f"{frame}[{name!r}]"
 	args = [render_expression(arg, framework, frame) for arg in tree["args"]]
+	# Binary/boolean nodes: every operand is parenthesized to preserve precedence; and/or become &/| (element-wise).
 	if kind in ("binary", "boolean"):
 		op = tree["op"] if kind == "binary" else "&" if tree["op"] == "and" else "|"
 		return "(" + f" {op} ".join(f"({arg})" for arg in args) + ")"
@@ -79,12 +86,14 @@ def render_expression(tree: dict[str, Any], framework: str, frame: str) -> str:
 			return f"(~_as_series({args[0]}, {frame}).astype('boolean'))"
 		return f"({op}({args[0]}))"
 	if kind == "if":
+		# pandas: Series.where keeps the value where the condition is true (null counts as false), else uses the fallback.
 		if framework == "pandas":
 			return f"_as_series({args[1]}, {frame}).where(_as_series({args[0]}, {frame}).fillna(False), {args[2]})"
 		if framework == "polars":
 			return f"pl.when({args[0]}).then({args[1]}).otherwise({args[2]})"
 		return f"F.when({args[0]}, {args[1]}).otherwise({args[2]})"
 	name = tree["name"]
+	# Remaining case: function calls. Each is rendered per backend; pandas wraps values in _as_series so scalars work too.
 	value = args[0]
 	if name == "abs":
 		return f"abs({value})" if framework == "pandas" else f"({value}).abs()" if framework == "polars" else f"F.abs({value})"

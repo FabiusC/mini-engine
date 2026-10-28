@@ -14,6 +14,7 @@ class OperationSpec:
 
 
 def _object(required: dict[str, Any], **optional: dict[str, Any]) -> dict[str, Any]:
+	# Shortcut for a JSON-schema object: required and optional properties, no extra keys allowed.
 	return {
 		"type": "object",
 		"properties": {**required, **optional},
@@ -42,6 +43,8 @@ _JOIN = _object(
 	suffixes={"type": "array", "items": {"type": ["string", "null"]}, "minItems": 2, "maxItems": 2},
 )
 
+# Registry name -> OperationSpec (input arity, parameter schema, supported targets). Built from a dict
+# comprehension over the core specs, then extended below by loops that register families of similar operations.
 OPERATIONS = {
 	spec.name: spec
 	for spec in (
@@ -164,6 +167,7 @@ for _name in ("transform_left", "transform_right"):
 		**_COLUMN_OUTPUT,
 	))
 
+# Alternative names (API spellings, joins by type, logical keywords) -> canonical operation name.
 # Aliases are normalized before entering the IR.
 ALIASES = {
 	"drop-column": "drop_column",
@@ -223,6 +227,7 @@ ALIASES.update({
 })
 
 # Polars implements the same canonical operations as the Pandas compiler.
+# Every spec is replaced by a copy (dataclasses.replace, since specs are frozen) that also lists polars as a target.
 POLARS_OPERATIONS = set(OPERATIONS)
 for _name, _spec in list(OPERATIONS.items()):
 	OPERATIONS[_name] = replace(_spec, targets=(
@@ -232,6 +237,7 @@ for _name, _spec in list(OPERATIONS.items()):
 
 
 def compatibility_matrix() -> dict[str, dict[str, bool]]:
+	# {operation: {framework: supported?}} for reporting which operations each backend supports.
 	return {
 		name: {framework: ("python", framework) in spec.targets for framework in ("pandas", "polars")}
 		for name, spec in sorted(OPERATIONS.items())
@@ -239,6 +245,7 @@ def compatibility_matrix() -> dict[str, dict[str, bool]]:
 
 
 def get_operation(name: str) -> OperationSpec:
+	# Case-insensitive lookup that resolves aliases; unknown names raise a readable ValueError.
 	normalized = name.lower()
 	try:
 		return OPERATIONS[ALIASES.get(normalized, normalized)]

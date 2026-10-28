@@ -10,6 +10,7 @@ RUNTIMES: dict[str, dict[str, Any]] = {
 
 
 def validate_target_parameters(framework: str, operation: str, parameters: Mapping[str, Any]) -> None:
+	# pandas supports everything the catalog allows; the checks below restrict other backends (polars).
 	if framework == "pandas":
 		return
 	if operation == "input" and parameters["source_type"] not in ("csv", "parquet"):
