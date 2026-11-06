@@ -5,7 +5,7 @@ from typing import Any
 
 RUNTIMES: dict[str, dict[str, Any]] = {
 	"pandas": {"requirements": ["pandas>=2.0.0", "openpyxl>=3.1.0", "pyarrow>=12.0.0", "SQLAlchemy>=2.0.0"], "python_requires": ">=3.10"},
-	"polars": {"requirements": ["polars>=1.24,<2"], "python_requires": ">=3.10"},
+	"polars": {"requirements": ["polars>=1.24,<2", "fastexcel>=0.11.0"], "python_requires": ">=3.10"},
 }
 
 

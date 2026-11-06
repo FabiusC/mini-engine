@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import re
+from collections.abc import Mapping
 from typing import Any
 
 from script_builder.ir.catalog import OPERATIONS
@@ -9,6 +11,17 @@ from script_builder.ir.plan import ExecutionPlan
 from script_builder.ir.validate import parameter_reference
 from script_builder.ir.targets import RUNTIMES
 from script_builder.ir.expressions import expression_parameters
+
+
+# The pipeline id names the artifact files, so it must be a plain, portable file name.
+PIPELINE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+
+
+def artifact_file_names(pipeline_id: str) -> tuple[str, str]:
+	"""Return the (script, notebook) file names of an artifact: both are named after the pipeline id."""
+	if not isinstance(pipeline_id, str) or not PIPELINE_ID_PATTERN.fullmatch(pipeline_id) or pipeline_id.endswith("."):
+		raise ValueError(f"pipeline_id must be a nonempty file-name-safe string, received {pipeline_id!r}")
+	return f"{pipeline_id}.py", f"{pipeline_id}.ipynb"
 
 
 def sha256(content: str) -> str:
@@ -60,11 +73,18 @@ def build_manifest(
 	pipeline_id: str = "pipeline",
 	pipeline_version: str = "1",
 	notebook: str | None = None,
+	input_files: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-	if not isinstance(pipeline_id, str) or not pipeline_id:
-		raise ValueError("pipeline_id must be a nonempty string")
+	script_name, notebook_name = artifact_file_names(pipeline_id)
 	if not isinstance(pipeline_version, str) or not pipeline_version:
 		raise ValueError("pipeline_version must be a nonempty string")
+	# input_files maps runtime parameters to the API file ids whose paths the worker supplies.
+	input_files = dict(input_files or {})
+	if not all(isinstance(name, str) and isinstance(file_id, str) and file_id for name, file_id in input_files.items()):
+		raise ValueError("input_files must map parameter names to nonempty file ids")
+	unknown = set(input_files) - set(plan.runtime_parameters)
+	if unknown:
+		raise ValueError(f"input_files reference undeclared runtime parameters: {sorted(unknown)}")
 	# Hash of the canonical (sorted keys, compact separators) plan JSON, so equal plans always give equal hashes.
 	return {
 		"manifest_version": "1",
@@ -78,18 +98,19 @@ def build_manifest(
 			"runtime_profile": f"python-{plan.framework}-v1",
 			**RUNTIMES[plan.framework],  # adds requirements and python_requires for the worker
 		},
-		"entrypoint": "main.py",
+		"entrypoint": script_name,
 		"files": [
-			{"path": "main.py", "sha256": sha256(script)},
+			{"path": script_name, "sha256": sha256(script)},
 			# The notebook entry is added only when a notebook was generated.
-			*([{"path": "pipeline.ipynb", "sha256": sha256(notebook)}] if notebook is not None else []),
+			*([{"path": notebook_name, "sha256": sha256(notebook)}] if notebook is not None else []),
 		],
 		"parameters_schema": parameter_schema(plan),
 		"datasource_port_ids": list(plan.datasource_port_ids),
 		"output_node_ids": list(plan.output_node_ids),
+		"input_files": dict(sorted(input_files.items())),
 		# How a worker must launch the script: command plus the CLI flags handled by runtime.script_main.
 		"execution": {
-			"command": ["python", "main.py"],
+			"command": ["python", script_name],
 			"parameters_argument": "--params-file",
 			"datasources_argument": "--datasources-file",
 			"base_dir_argument": "--base-dir",

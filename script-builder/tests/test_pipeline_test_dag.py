@@ -1,4 +1,4 @@
-"""End to end: dag/pipeline_test.json -> generated script (pandas and polars) -> identical CSV output."""
+"""End to end: fixtures/pipeline_test.json -> generated script (pandas and polars) -> identical CSV output."""
 
 import json
 import runpy
@@ -14,7 +14,8 @@ from script_builder.__main__ import main as builder_main
 from script_builder.ir import build_plan
 
 ROOT = Path(__file__).resolve().parents[2]
-PIPELINE = ROOT / "dag" / "pipeline_test.json"
+PIPELINE = Path(__file__).resolve().parent / "fixtures" / "pipeline_test.json"
+SCRIPT = "pipeline_test.py"
 EXPECTED_COLUMNS = [
 	"Profit_south", "Order Date", "Customer Name_south", "Postal Code_south", "profit_in_range",
 	"absolute_profit", "postal_code_text", "postal_code_concat", "customer_name_lower", "order_month",
@@ -22,13 +23,13 @@ EXPECTED_COLUMNS = [
 
 
 def generate_and_run(tmp_path: Path, framework: str) -> pd.DataFrame:
-	"""Generate the artifact with the CLI and execute main.py as a worker would (python main.py ...)."""
+	"""Generate the artifact with the CLI and execute pipeline_test.py as a worker would (python pipeline_test.py ...)."""
 	artifact = tmp_path / framework
 	builder_main([str(PIPELINE), "--framework", framework, "--output-dir", str(artifact)])
 	argv = sys.argv
-	sys.argv = [str(artifact / "main.py"), "--base-dir", str(tmp_path)]
+	sys.argv = [str(artifact / SCRIPT), "--base-dir", str(tmp_path)]
 	try:
-		runpy.run_path(str(artifact / "main.py"), run_name="__main__")
+		runpy.run_path(str(artifact / SCRIPT), run_name="__main__")
 	finally:
 		sys.argv = argv
 	return pd.read_csv(tmp_path / "output" / "processed_orders.csv")
@@ -50,13 +51,13 @@ def test_pipeline_test_topology_is_ordered_and_self_contained() -> None:
 
 
 @pytest.mark.parametrize("framework", ["pandas", "polars"])
-def test_builder_cli_writes_only_main_and_manifest(workspace: Path, framework: str) -> None:
+def test_builder_cli_writes_only_script_named_after_pipeline_and_manifest(workspace: Path, framework: str) -> None:
 	artifact = workspace / "artifact"
 	manifest = builder_main([str(PIPELINE), "--framework", framework, "--output-dir", str(artifact)])
-	assert sorted(path.name for path in artifact.iterdir()) == ["main.py", "manifest.json"]
+	assert sorted(path.name for path in artifact.iterdir()) == ["manifest.json", SCRIPT]
 	assert manifest["pipeline_id"] == "pipeline_test"
 	assert manifest["target"]["framework"] == framework
-	assert "script_builder" not in (artifact / "main.py").read_text(encoding="utf-8")
+	assert "script_builder" not in (artifact / SCRIPT).read_text(encoding="utf-8")
 	# Regenerating replaces the previous artifact.
 	assert builder_main([str(PIPELINE), "--framework", framework, "--output-dir", str(artifact)]) == manifest
 

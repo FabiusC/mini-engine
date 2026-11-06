@@ -1,5 +1,7 @@
 """Logical operation contracts; no dataframe backend is imported here."""
 
+import re
+import unicodedata
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -242,6 +244,38 @@ def compatibility_matrix() -> dict[str, dict[str, bool]]:
 		name: {framework: ("python", framework) in spec.targets for framework in ("pandas", "polars")}
 		for name, spec in sorted(OPERATIONS.items())
 	}
+
+
+# API parameter labels (slugified: ASCII, lowercase, "_" separators) -> canonical parameter name.
+# "file_id" is not an operation parameter: the API loader turns it into a runtime file path.
+PARAMETER_ALIASES = {
+	"archivo": "file_id",
+	"columna": "column",
+	"nombre_de_la_columna": "column",
+	"nueva_columna": "create_new_column",
+	"crear_nueva_columna": "create_new_column",
+	"nombre_nueva_columna": "new_column_name",
+	"nombre_de_la_nueva_columna": "new_column_name",
+}
+
+
+def _slug(name: str) -> str:
+	ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+	return re.sub(r"[^a-z0-9]+", "_", ascii_name.lower()).strip("_")
+
+
+def canonical_parameter_name(operation: str, name: str) -> str:
+	"""Map an API parameter label (e.g. "Nueva columna") to the operation's canonical parameter name."""
+	normalized = operation.lower()
+	spec = OPERATIONS.get(ALIASES.get(normalized, normalized))
+	properties = spec.parameters.get("properties", {}) if spec else {}
+	if name in properties:
+		return name
+	slug = _slug(name)
+	if slug in properties:
+		return slug
+	# Unknown labels are returned unchanged so plan validation reports them by their original name.
+	return PARAMETER_ALIASES.get(slug, name)
 
 
 def get_operation(name: str) -> OperationSpec:

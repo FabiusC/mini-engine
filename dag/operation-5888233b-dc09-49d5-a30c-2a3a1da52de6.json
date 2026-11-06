@@ -1,0 +1,62 @@
+{
+    "success": true,
+    "message": "Operation retrieved successfully.",
+    "code": "OPERATION_RETRIEVED",
+    "data": {
+        "id": "5888233b-dc09-49d5-a30c-2a3a1da52de6",
+        "created_at": "2026-10-29T02:20:56.163902Z",
+        "edited_at": "2026-11-05T14:01:51.307319Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+        "name": "read_csv",
+        "label": "Leer archivo",
+        "description": "Permite leer un archivo ya subido al DSM",
+        "operation_category_id": "e5e5530e-7953-4628-8b15-126331caf24b",
+        "operation_template_id": "6266fd6f-cef2-49eb-85de-11ffb45f55ff",
+        "input_ports": [],
+        "output_ports": [
+            {
+                "id": "0b3a73e6-acf9-4d57-945c-f05347033c58",
+                "created_at": "2026-10-29T02:20:56.163902Z",
+                "edited_at": "2026-10-29T02:20:56.163902Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "5888233b-dc09-49d5-a30c-2a3a1da52de6",
+                "ordinal": 0,
+                "position": "right",
+                "max_connections": 2147483647,
+                "description": null
+            }
+        ],
+        "parameters": [
+            {
+                "id": "bd5ac26a-b6d0-42e7-93c6-6f759600034a",
+                "created_at": "2026-10-29T02:20:56.163902Z",
+                "edited_at": "2026-10-29T02:20:56.163902Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "5888233b-dc09-49d5-a30c-2a3a1da52de6",
+                "operation_parameter_template_id": "477c0e4e-6a88-4e80-97c1-3b32e86a6ed6",
+                "parent_id": null,
+                "data_type_id": "610afd29-b147-4ab1-ac69-5e27d58bc33d",
+                "ui_widget_id": "20921145-635f-4a04-b1cf-f66bf4eb1c03",
+                "name": "archivo",
+                "required": true,
+                "label": "archivo",
+                "ordinal": 0,
+                "description": null,
+                "default": null,
+                "default_items": [],
+                "constraints": [],
+                "children": []
+            }
+        ]
+    }
+}

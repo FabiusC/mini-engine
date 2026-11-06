@@ -1,0 +1,39 @@
+{
+    "success": true,
+    "message": "Operation retrieved successfully.",
+    "code": "OPERATION_RETRIEVED",
+    "data": {
+        "id": "6b97ff19-6e97-4b93-9a57-df4e5bd2a00c",
+        "created_at": "2026-10-29T14:25:16.275589Z",
+        "edited_at": "2026-10-29T14:25:16.275589Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+        "name": "write_csv",
+        "label": null,
+        "description": "Escribir datos a un archivo CSV",
+        "operation_category_id": "bc2c0427-b101-46cd-a49c-6380956bb7c3",
+        "operation_template_id": "d4743501-fc1c-4d68-8337-edbb52ad6f42",
+        "input_ports": [
+            {
+                "id": "c1d8a64a-effa-4602-ba56-a526af2beb54",
+                "created_at": "2026-10-29T14:25:16.275589Z",
+                "edited_at": "2026-10-29T14:25:16.275589Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+                "operation_id": "6b97ff19-6e97-4b93-9a57-df4e5bd2a00c",
+                "required": true,
+                "ordinal": 0,
+                "position": "left",
+                "max_connections": 1,
+                "description": "Dataset consumed by the sink"
+            }
+        ],
+        "output_ports": [],
+        "parameters": []
+    }
+}

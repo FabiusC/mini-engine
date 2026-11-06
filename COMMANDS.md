@@ -3,18 +3,18 @@
 
 >pip install -r requirements.txt
 
-### Generar con los valores por defecto (pandas)
+### Generar con los valores por defecto (lee ../dag/, pandas)
 >python src/main.py
+Salida: ../output/<pipeline_id>/<pipeline_id>.py y manifest.json
 
-### Elegir otro DAG
->python src/main.py ../dag/pipeline_clean.json
+### Generar para Polars e incluir notebook
+>python src/main.py --framework polars --notebook
 
-### Generar para Polars en una carpeta independiente
->python src/main.py ../dag/pipeline_test.json --framework polars --output-dir ../output/pipeline_polars
+### Elegir otra carpeta de respuestas de la API o un pipeline concreto
+>python src/main.py ../dag --pipeline-id e6b4f425-1133-4cae-97ec-442f4cf2a24b
 
-### Personalizar salida, identificador y version; incluir notebook
->python src/main.py ../dag/pipeline_test.json --output-dir ../output/my_pipeline --pipeline-id my_pipeline --pipeline-version 2 --notebook
-Salida por defecto: ../output/pipeline_test/main.py y manifest.json
+### Compilar un DAG ya normalizado (formato interno)
+>python src/main.py tests/fixtures/pipeline_test.json --output-dir ../output/my_pipeline --pipeline-id my_pipeline --pipeline-version 2
 
 # WORKER
 ### Cambiar desde script-builder/:
@@ -24,14 +24,15 @@ Salida por defecto: ../output/pipeline_test/main.py y manifest.json
 >pip install -r requirements-pandas.txt
 >pip install -r requirements-polars.txt
 
-### Ejecutar el artefacto por defecto; el backend se detecta desde el manifiesto
+### Ruta del archivo de entrada (hardcodeada)
+Editar INPUT_FILE_PATH (o INPUT_FILE_PATHS por file id) en src/workers/settings.py
+
+### Ejecutar el ultimo artefacto generado; el backend se detecta desde el manifiesto
 >python src/main.py
 
-### Ejecutar un artefacto especifico
+### Ejecutar un artefacto por pipeline id o por carpeta
+>python src/main.py e6b4f425-1133-4cae-97ec-442f4cf2a24b
 >python src/main.py ../output/my_pipeline
-
-### Ejecutar el artefacto Polars generado arriba
->python src/main.py ../output/pipeline_polars --worker polars
 
 # TESTS (desde la raiz del repositorio) #
 ### Cambiar desde workers/:

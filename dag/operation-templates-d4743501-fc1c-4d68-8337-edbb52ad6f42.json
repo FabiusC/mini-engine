@@ -1,0 +1,33 @@
+{
+    "success": true,
+    "message": "Operation Template retrieved successfully.",
+    "code": "OPERATION__TEMPLATE_RETRIEVED",
+    "data": {
+        "id": "d4743501-fc1c-4d68-8337-edbb52ad6f42",
+        "created_at": "2026-10-22T20:36:31.101372Z",
+        "edited_at": "2026-10-22T20:36:31.101372Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "category_template_id": "eac0767a-3da6-4e9a-80f2-b4c6fc2fe834",
+        "name": "write_csv",
+        "label": null,
+        "description": "Escribir datos a un archivo CSV",
+        "input_ports": [
+            {
+                "id": "3cee6045-d270-4195-a345-544c862d046a",
+                "created_at": "2026-10-22T20:36:31.113168Z",
+                "edited_at": "2026-10-22T20:36:31.113168Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "operation_template_id": "d4743501-fc1c-4d68-8337-edbb52ad6f42",
+                "required": true,
+                "ordinal": 0,
+                "position": "left",
+                "max_connections": 1,
+                "description": "Dataset consumed by the sink"
+            }
+        ],
+        "output_ports": [],
+        "parameter_templates": []
+    }
+}

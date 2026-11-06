@@ -23,6 +23,7 @@ from script_builder.ir.catalog import ALIASES, OPERATIONS
 
 
 ROOT = Path(__file__).resolve().parents[2]
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 BUILDER = ROOT / "script-builder" / "src" / "main.py"
 
 
@@ -54,7 +55,7 @@ def load_script(path):
 def compile_module(tmp_path, pipeline):
 	artifact = tmp_path / "artifact"
 	manifest = build_artifact(pipeline, artifact, pipeline_id="test", pipeline_version="1")
-	return load_script(artifact / "main.py"), manifest
+	return load_script(artifact / "test.py"), manifest
 
 
 def test_plan_preserves_port_order_external_bindings_aliases_and_isolation():
@@ -363,7 +364,7 @@ def test_csv_encoding_fallback_and_write_index_match_runner(tmp_path):
 
 def test_branched_pipeline_and_structural_fixture_match_runner(tmp_path):
 	shutil.copytree(ROOT / "data", tmp_path / "data")
-	pipeline = json.loads((ROOT / "dag/pipeline.json").read_text(encoding="utf-8"))
+	pipeline = json.loads((FIXTURES / "pipeline.json").read_text(encoding="utf-8"))
 	reference = reference_run(pipeline, base_dir=tmp_path)
 	module, manifest = compile_module(tmp_path, pipeline)
 	generated = module.run(base_dir=tmp_path)
@@ -455,7 +456,7 @@ def test_literals_cannot_inject_code_and_only_used_helpers_are_bundled(tmp_path)
 	frame = pd.DataFrame({"id": [1]})
 	result = module.run({f"{malicious}_in_0": frame})[malicious]
 	assert result[malicious].tolist() == [malicious]
-	source = (tmp_path / "artifact/main.py").read_text()
+	source = (tmp_path / "artifact/test.py").read_text()
 	tree = ast.parse(source)
 	assert not any(
 		isinstance(item, ast.ImportFrom) and (item.module or "").startswith("script_builder")
@@ -482,8 +483,8 @@ def test_artifacts_are_deterministic_hashed_and_not_overwritten(tmp_path):
 	pipeline["edges"].reverse()
 	second = build_artifact(pipeline, tmp_path / "two", pipeline_id="test", pipeline_version="1")
 	assert first == second
-	script = (tmp_path / "one/main.py").read_bytes()
-	assert script == (tmp_path / "two/main.py").read_bytes()
+	script = (tmp_path / "one/test.py").read_bytes()
+	assert script == (tmp_path / "two/test.py").read_bytes()
 	assert first["files"][0]["sha256"] == hashlib.sha256(script).hexdigest()
 	assert first["plan_hash"] == hashlib.sha256(json.dumps(
 		build_plan(before).to_dict(), sort_keys=True, separators=(",", ":"), allow_nan=False,
@@ -491,7 +492,7 @@ def test_artifacts_are_deterministic_hashed_and_not_overwritten(tmp_path):
 	assert json.loads((tmp_path / "one/manifest.json").read_text()) == first
 	with pytest.raises(FileExistsError):
 		build_artifact(before, tmp_path / "one", pipeline_id="test", pipeline_version="2")
-	assert (tmp_path / "one/main.py").read_bytes() == script
+	assert (tmp_path / "one/test.py").read_bytes() == script
 
 
 def test_parameter_object_key_order_does_not_change_artifact():
@@ -505,7 +506,7 @@ def test_parameter_object_key_order_does_not_change_artifact():
 
 
 def test_documented_example_executes_and_matches_reference(tmp_path):
-	pipeline = json.loads((ROOT / "dag/pipeline_codegen.json").read_text())
+	pipeline = json.loads((FIXTURES / "pipeline_codegen.json").read_text())
 	params = {"source_csv": "source.csv", "output_csv": "result.csv", "row_limit": 2}
 	pd.DataFrame({"Sales": [0, 20, -1, 40, 30]}).to_csv(tmp_path / "source.csv", index=False)
 	module, manifest = compile_module(tmp_path, pipeline)
@@ -544,7 +545,7 @@ def test_builder_and_generated_cli_run_outside_repository(tmp_path):
 	params_file = tmp_path / "params.json"
 	params_file.write_text(json.dumps(params))
 	command = [
-		sys.executable, str(artifact / "main.py"),
+		sys.executable, str(artifact / "orders.py"),
 		"--params-file", str(params_file), "--base-dir", str(tmp_path),
 	]
 	worker_env = {**os.environ, "PYTHONPATH": ""}
@@ -565,12 +566,12 @@ def test_builder_and_generated_cli_run_outside_repository(tmp_path):
 
 def test_builder_cli_defaults_artifacts_under_repository_output_folder(tmp_path):
 	pipeline = tmp_path / f"cli_default_{tmp_path.name}.json"
-	shutil.copy(ROOT / "dag/pipeline.json", pipeline)
+	shutil.copy(FIXTURES / "pipeline.json", pipeline)
 	artifact = ROOT / "output" / pipeline.stem
 	try:
 		subprocess.run([sys.executable, str(BUILDER), str(pipeline)], cwd=tmp_path, capture_output=True, text=True, check=True)
 		manifest = json.loads((artifact / "manifest.json").read_text())
-		assert (artifact / "main.py").is_file()
+		assert (artifact / f"{pipeline.stem}.py").is_file()
 		assert (manifest["pipeline_id"], manifest["pipeline_version"]) == (pipeline.stem, "1")
 	finally:
 		shutil.rmtree(artifact, ignore_errors=True)
@@ -582,7 +583,7 @@ def test_generated_cli_supports_external_csv_datasources(tmp_path):
 	pd.DataFrame({"id": [1, 2]}).to_csv(tmp_path / "input.csv", index=False)
 	(tmp_path / "datasources.json").write_text(json.dumps({"limit_in_0": "input.csv"}))
 	completed = subprocess.run([
-		sys.executable, str(tmp_path / "artifact/main.py"),
+		sys.executable, str(tmp_path / "artifact/test.py"),
 		"--datasources-file", str(tmp_path / "datasources.json"), "--base-dir", str(tmp_path),
 	], cwd=tmp_path, env={**os.environ, "PYTHONPATH": ""}, capture_output=True, text=True, check=True)
 	assert json.loads(completed.stdout)["limit"]["rows"] == 1
@@ -602,7 +603,7 @@ def test_generation_is_stable_across_python_hash_seeds(tmp_path):
 			sys.executable, str(BUILDER), str(tmp_path / "pipeline.json"),
 			"--output-dir", str(tmp_path / seed), "--pipeline-id", "test", "--pipeline-version", "1",
 		], cwd=ROOT, env={**os.environ, "PYTHONHASHSEED": seed}, capture_output=True, text=True, check=True)
-	assert (tmp_path / "1/main.py").read_bytes() == (tmp_path / "2/main.py").read_bytes()
+	assert (tmp_path / "1/test.py").read_bytes() == (tmp_path / "2/test.py").read_bytes()
 	assert (tmp_path / "1/manifest.json").read_bytes() == (tmp_path / "2/manifest.json").read_bytes()
 
 
@@ -617,3 +618,17 @@ def test_catalog_is_backend_independent():
 		assert canonical in OPERATIONS
 	assert PandasEmitter.engine == "python"
 	assert PandasEmitter.framework == "pandas"
+
+
+@pytest.mark.parametrize("pipeline_id", ["", "../escape", "a/b", ".hidden", "trailing.", 7])
+def test_pipeline_id_must_be_a_safe_script_file_name(tmp_path, pipeline_id):
+	pipeline = {"nodes": [node("limit", "limit", {"limit": 1})], "edges": []}
+	with pytest.raises(ValueError, match="pipeline_id"):
+		build_artifact(pipeline, tmp_path / "artifact", pipeline_id=pipeline_id)
+	assert not (tmp_path / "artifact").exists()
+
+
+def test_input_files_must_reference_declared_runtime_parameters(tmp_path):
+	pipeline = {"nodes": [node("limit", "limit", {"limit": 1})], "edges": [], "input_files": {"file_x": "x"}}
+	with pytest.raises(ValueError, match="undeclared runtime parameters"):
+		build_artifact(pipeline, tmp_path / "artifact", pipeline_id="test")

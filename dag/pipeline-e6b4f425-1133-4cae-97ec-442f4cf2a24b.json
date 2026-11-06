@@ -1,0 +1,21 @@
+{
+    "success": true,
+    "message": "Pipeline retrieved successfully.",
+    "code": "PIPELINE_RETRIEVED",
+    "data": {
+        "id": "e6b4f425-1133-4cae-97ec-442f4cf2a24b",
+        "created_at": "2026-11-06T14:13:49.629726Z",
+        "edited_at": "2026-11-06T14:13:49.629726Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "creator_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "last_editor_user_id": "8f10adb6-8f9f-4c57-b318-a4f0a867b098",
+        "organization_id": "33ba0c63-4799-41ca-a4eb-8bc53abad953",
+        "name": "Netflix0",
+        "description": "asd",
+        "project_id": "f9c9cb51-d6e2-459f-bf4f-62b56d0c119c",
+        "folder_id": "0588ddc1-e844-462f-9fe5-eea2d18bcffa",
+        "is_locked": false,
+        "current_version_id": "ecf87031-be86-4cf4-8942-90612749e1fa"
+    }
+}

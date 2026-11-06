@@ -3,7 +3,12 @@ from pathlib import Path
 
 class PolarsIOOperations:
 	def read_csv(self, filepath):
-		"""Read a CSV as UTF-8, falling back to Latin-1 when decoding fails."""
+		"""Read a CSV as UTF-8, falling back to Latin-1; .xlsx/.xlsm/.xls and .parquet files are read by extension."""
+		suffix = Path(filepath).suffix.lower()
+		if suffix in (".xlsx", ".xlsm", ".xls"):
+			return pl.read_excel(filepath)
+		if suffix == ".parquet":
+			return pl.read_parquet(filepath)
 		try:
 			return pl.read_csv(filepath)
 		except pl.exceptions.ComputeError as error:

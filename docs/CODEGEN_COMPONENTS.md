@@ -8,14 +8,14 @@ rutas son relativas a `script-builder/src/script_builder/`.
 
 ```mermaid
 flowchart LR
-    PIPELINE["dag/pipeline_test.json<br/><b>Entrada por defecto</b><br/>nodes, edges, operation, parameters"]
+    PIPELINE["dag/*.json<br/><b>Entrada por defecto</b><br/>respuestas API: pipeline, nodes, edges, operation"]
 
     subgraph ENTRY["Entrada al compilador"]
         MAIN["script-builder/src/main.py<br/><b>Punto de entrada</b>: delega en el CLI."]
-        CLI["script_builder.__main__.main()<br/><b>Lee argumentos</b>: pipeline, framework y metadata;<br/>por defecto output/&lt;pipeline&gt; y pipeline-id = nombre del JSON."]
+        CLI["script_builder.__main__.main()<br/><b>Lee argumentos</b>: carpeta dag/ o JSON, framework y metadata;<br/>load_api_pipeline normaliza;<br/>por defecto output/&lt;pipeline_id&gt;/."]
         BUILD["script_builder.codegen.builder.build_artifact()<br/><b>Orquesta compilación</b>: crea plan,<br/>emite código y escribe el artefacto<br/>(overwrite=True desde el CLI)."]
         MAIN -->|"delegación"| CLI
-        PIPELINE -->|"JSON leído por CLI"| CLI
+        PIPELINE -->|"load_api_pipeline()"| CLI
         CLI -->|"pipeline + opciones"| BUILD
     end
 
@@ -72,12 +72,12 @@ flowchart LR
     subgraph ARTIFACT["Manifest y archivos · script_builder.artifacts"]
         NOTEBOOK["codegen.notebook.emit_notebook()<br/><b>Opcional</b>: empaqueta definiciones,<br/>inputs editables y celda de ejecución."]
         MANIFEST["artifacts.manifest.build_manifest()<br/>parameter_schema() + sha256()<br/><b>Describe target, hashes, parámetros,<br/>datasources, outputs y entrypoint.</b>"]
-        WRITE["builder escribe archivos<br/><b>output_dir/main.py</b><br/><b>output_dir/manifest.json</b><br/>[output_dir/pipeline.ipynb]<br/>Reemplaza la carpeta si overwrite; manifest al final."]
+        WRITE["builder escribe archivos<br/><b>output_dir/&lt;pipeline_id&gt;.py</b><br/><b>output_dir/manifest.json</b><br/>[output_dir/&lt;pipeline_id&gt;.ipynb]<br/>Reemplaza la carpeta si overwrite; manifest al final."]
         SOURCE -->|"script generado"| MANIFEST
         SOURCE -->|"si notebook=true"| NOTEBOOK
         NOTEBOOK -.->|"contenido opcional"| MANIFEST
-        SOURCE -->|"main.py"| WRITE
-        NOTEBOOK -.->|"pipeline.ipynb"| WRITE
+        SOURCE -->|"&lt;pipeline_id&gt;.py"| WRITE
+        NOTEBOOK -.->|"&lt;pipeline_id&gt;.ipynb"| WRITE
         MANIFEST -->|"manifest.json"| WRITE
     end
 
@@ -94,7 +94,7 @@ flowchart LR
 | Símbolo | Qué hace y cómo |
 |---|---|
 | `script-builder/src/main.py` | Punto de entrada; delega en `script_builder.__main__.main`. |
-| `script_builder.__main__.main` | Lee el pipeline JSON (por defecto `dag/pipeline_test.json`) y sus opciones. Escribe por defecto en `output/<nombre-del-pipeline>/`, o en `--output-dir`. |
+| `script_builder.__main__.main` | Lee la carpeta `dag/` con `load_api_pipeline` (o un JSON ya normalizado) y sus opciones. Escribe `<pipeline_id>.py` por defecto en `output/<pipeline_id>/`, o en `--output-dir`. |
 | `build_artifact` | Controla el orden de compilación y escritura. Sin `overwrite=True` no reemplaza un directorio existente. |
 | `build_plan` | Valida y traduce JSON a IR independiente del runtime de datos. |
 | `collect_nodes`, `_ports`, `topological_order` | Indexan nodos, comprueban puertos/aristas y ordenan productores antes que consumidores. |
@@ -105,49 +105,48 @@ flowchart LR
 | `_helper_sources`, `_MethodToFunction` | Inspeccionan los métodos usados de `operations/pandas` u `operations/polars`, los convierten en funciones y siguen sus dependencias. |
 | `PandasEmitter.implementations`, `PolarsOperations` | Enrutan cada operación del catálogo a su método Pandas (clase `*Operations` por categoría) o Polars. Las pruebas comprueban que cubren el catálogo completo. |
 | `step_parameters`, `check_context`, `script_main` | Se incluyen en el script para validar inputs y parámetros de ejecución, leer archivos de argumentos y ejecutar `run()`. |
-| `emit_notebook` | Genera tres celdas reproducibles: definiciones, inputs configurables y ejecución; no reemplaza `main.py`. |
+| `emit_notebook` | Genera tres celdas reproducibles: definiciones, inputs configurables y ejecución; no reemplaza `<pipeline_id>.py`. |
 | `build_manifest`, `parameter_schema`, `sha256` | Construyen metadatos de runtime y calculan los hashes del plan y archivos emitidos. |
 
-## Normalización de respuestas API (desconectada)
+## Normalización de respuestas API
 
 ```mermaid
 flowchart LR
-    SNAPSHOTS["dag/nodes.json + edges.json<br/>+ &lt;operation-id&gt;.json"]
-    EXPORT["dag.pipeline_clean.export_clean_pipeline()<br/><b>Lee snapshots</b> y operaciones por ID;<br/>escribe dag/pipeline_clean.json."]
-    MERGE["dag.pipeline_clean.merge_pipeline_clean()<br/>_records() + _parameters()<br/><b>Normaliza envelopes y parámetros</b>,<br/>omite registros borrados y valida referencias."]
-    CLEAN["dag/pipeline_clean.json<br/>pipeline normalizado"]
-    CLI["CLI del builder"]
+    SNAPSHOTS["dag/*.json<br/>respuestas guardadas de la API"]
+    READ["dag.pipeline_clean.read_snapshots()<br/><b>Clasifica por code</b>; ignora vacíos,<br/>templates y pipeline_clean.json."]
+    LOAD["dag.pipeline_clean.load_api_pipeline()<br/><b>Elige el pipeline</b> y su versión actual."]
+    MERGE["dag.pipeline_clean.merge_pipeline_clean()<br/>_records() + _parameters()<br/><b>Valores tipados, alias de parámetros</b>,<br/>archivo → $param file_&lt;id&gt;, omite borrados."]
+    CLI["CLI del builder → build_artifact"]
 
-    SNAPSHOTS --> EXPORT --> MERGE --> CLEAN
-    CLEAN -.->|"futuro: entrada del builder"| CLI
+    SNAPSHOTS --> READ --> LOAD --> MERGE --> CLI
 ```
 
-`merge_pipeline_clean` **no se llama** desde `build_artifact` ni desde el CLI.
-Mientras no exista la captura desde la API, el builder usa
-`dag/pipeline_test.json`.
+El CLI usa `load_api_pipeline` cuando recibe una carpeta (por defecto `dag/`).
+`export_clean_pipeline` escribe el mismo resultado en `dag/pipeline_clean.json`
+solo para inspección.
 
 ## Worker emulado · workers/src/workers
 
 ```mermaid
 flowchart LR
-    ART["output/&lt;pipeline&gt;/<br/>main.py + manifest.json"]
+    ART["output/&lt;pipeline_id&gt;/<br/>&lt;pipeline_id&gt;.py + manifest.json"]
     WCLI["workers.__main__.main()<br/><b>Elige worker</b>: --worker o<br/>target.framework del manifest."]
-    LOAD["artifact.load_artifact()<br/><b>Verifica</b> manifest_version, entrypoint,<br/>archivos permitidos, SHA-256 y engine python."]
-    WORKER["PandasWorker / PolarsWorker<br/>base.Worker.run()<br/><b>Rechaza</b> otro framework, comprueba módulos<br/>y lanza main.py sin shell."]
+    LOAD["artifact.load_artifact()<br/><b>Verifica</b> manifest_version, entrypoint,<br/>archivos permitidos, SHA-256, engine python<br/>e input_files."]
+    WORKER["PandasWorker / PolarsWorker<br/>base.Worker.run()<br/><b>Rechaza</b> otro framework, comprueba módulos,<br/>pone rutas de settings.py en un params temporal<br/>y lanza &lt;pipeline_id&gt;.py sin shell."]
     RESULT["exit code + resumen JSON<br/>datos escritos por los nodos de salida"]
 
     ART --> WCLI --> WORKER
     WORKER --> LOAD --> ART
-    WORKER -->|"python main.py --base-dir …"| RESULT
+    WORKER -->|"python &lt;pipeline_id&gt;.py --params-file … --base-dir …"| RESULT
 ```
 
 ## Artefacto resultante
 
-`output/<pipeline>/` contiene:
+`output/<pipeline_id>/` contiene:
 
-- Un `main.py` autónomo para el framework seleccionado.
+- Un `<pipeline_id>.py` autónomo para el framework seleccionado.
 - Un `manifest.json` con perfil y hashes.
-- `pipeline.ipynb`, si se solicita.
+- `<pipeline_id>.ipynb`, si se solicita.
 
 El worker solo necesita el runtime del manifest (`pandas`/`numpy` o `polars`).
 No necesita el catálogo, los emitters ni el resto de este repositorio.

@@ -31,10 +31,10 @@ def compile_module(tmp_path, dag):
 		dag, directory, pipeline_id="polars-test", pipeline_version="1",
 		framework="polars",
 	)
-	spec = importlib.util.spec_from_file_location("polars_pipeline", directory / "main.py")
+	spec = importlib.util.spec_from_file_location("polars_pipeline", directory / "polars-test.py")
 	module = importlib.util.module_from_spec(spec)
 	spec.loader.exec_module(module)
-	source = (directory / "main.py").read_text()
+	source = (directory / "polars-test.py").read_text()
 	assert "import pandas" not in source
 	assert "script_builder" not in source
 	return module

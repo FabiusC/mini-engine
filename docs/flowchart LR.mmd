@@ -1,12 +1,12 @@
 flowchart LR
-    PIPELINE["dag/pipeline_test.json<br/><b>Entrada por defecto</b><br/>nodes, edges, operation, parameters"]
+    PIPELINE["dag/*.json<br/><b>Entrada por defecto</b><br/>respuestas API: pipeline, nodes, edges, operation"]
 
     subgraph ENTRY["Entrada al compilador"]
         MAIN["script-builder/src/main.py<br/><b>Punto de entrada</b>: delega en el CLI."]
-        CLI["script_builder.__main__.main()<br/><b>Lee argumentos</b>: pipeline, framework y metadata;<br/>por defecto output/&lt;pipeline&gt; y pipeline-id = nombre del JSON."]
+        CLI["script_builder.__main__.main()<br/><b>Lee argumentos</b>: carpeta dag/ o JSON, framework y metadata;<br/>load_api_pipeline normaliza;<br/>por defecto output/&lt;pipeline_id&gt;/."]
         BUILD["script_builder.codegen.builder.build_artifact()<br/><b>Orquesta compilación</b>: crea plan,<br/>emite código y escribe el artefacto<br/>(overwrite=True desde el CLI)."]
         MAIN -->|"delegación"| CLI
-        PIPELINE -->|"JSON leído por CLI"| CLI
+        PIPELINE -->|"load_api_pipeline()"| CLI
         CLI -->|"pipeline + opciones"| BUILD
     end
 
@@ -63,12 +63,12 @@ flowchart LR
     subgraph ARTIFACT["Manifest y archivos · script_builder.artifacts"]
         NOTEBOOK["codegen.notebook.emit_notebook()<br/><b>Opcional</b>: empaqueta definiciones,<br/>inputs editables y celda de ejecución."]
         MANIFEST["artifacts.manifest.build_manifest()<br/>parameter_schema() + sha256()<br/><b>Describe target, hashes, parámetros,<br/>datasources, outputs y entrypoint.</b>"]
-        WRITE["builder escribe archivos<br/><b>output_dir/main.py</b><br/><b>output_dir/manifest.json</b><br/>[output_dir/pipeline.ipynb]<br/>Reemplaza la carpeta si overwrite; manifest al final."]
+        WRITE["builder escribe archivos<br/><b>output_dir/&lt;pipeline_id&gt;.py</b><br/><b>output_dir/manifest.json</b><br/>[output_dir/&lt;pipeline_id&gt;.ipynb]<br/>Reemplaza la carpeta si overwrite; manifest al final."]
         SOURCE -->|"script generado"| MANIFEST
         SOURCE -->|"si notebook=true"| NOTEBOOK
         NOTEBOOK -.->|"contenido opcional"| MANIFEST
-        SOURCE -->|"main.py"| WRITE
-        NOTEBOOK -.->|"pipeline.ipynb"| WRITE
+        SOURCE -->|"&lt;pipeline_id&gt;.py"| WRITE
+        NOTEBOOK -.->|"&lt;pipeline_id&gt;.ipynb"| WRITE
         MANIFEST -->|"manifest.json"| WRITE
     end
 

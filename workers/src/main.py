@@ -1,4 +1,4 @@
-"""Entry point: python workers/src/main.py [ARTIFACT_DIR] [--worker pandas|polars]."""
+"""Entry point: python workers/src/main.py [ARTIFACT_DIR|PIPELINE_ID] [--worker pandas|polars]."""
 
 from workers.__main__ import main
 

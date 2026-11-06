@@ -9,7 +9,12 @@ class IOOperations:
 	"""Stateless io operations for dataframe pipelines."""
 
 	def read_csv(self, filepath: str | Path) -> pd.DataFrame:
-		"""Read a CSV as UTF-8, falling back to Latin-1 when decoding fails."""
+		"""Read a CSV as UTF-8, falling back to Latin-1; .xlsx/.xlsm/.xls and .parquet files are read by extension."""
+		suffix = Path(filepath).suffix.lower()
+		if suffix in (".xlsx", ".xlsm", ".xls"):
+			return pd.read_excel(filepath)
+		if suffix == ".parquet":
+			return pd.read_parquet(filepath)
 		try:
 			return pd.read_csv(filepath, encoding="utf-8-sig")
 		except UnicodeDecodeError:

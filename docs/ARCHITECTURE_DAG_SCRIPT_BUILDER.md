@@ -5,12 +5,13 @@ general. El **DAG Script Builder** (`script-builder/src/script_builder`) se
 ubica como módulo dentro de DataIntegration/Manager. La solicitud de ejecución,
 Kafka, el Job Dispatcher y Kubernetes son componentes de la plataforma y **no
 están en este repositorio**. El pod ejecuta el script en un worker Pandas o
-Polars. `workers/src` solo emula ese worker localmente: verifica el manifest y
-ejecuta `main.py`.
+Polars. `workers/src` solo emula ese worker localmente: verifica el manifest,
+pone la ruta del archivo de entrada (hardcodeada en `workers/src/workers/settings.py`)
+y ejecuta `<pipeline_id>.py`.
 
-Hoy el builder lee `dag/pipeline_test.json`. La captura de los endpoints y el
-paso API → `pipeline_clean` → builder están pendientes: `pipeline_clean` está
-desconectado del flujo principal.
+Hoy el builder lee las respuestas de los endpoints ya guardadas en `dag/`
+(pipeline, nodes, edges, operation) y las pasa por `pipeline_clean` antes de
+compilar. No consulta la API: la captura de las respuestas sigue pendiente.
 
 ```mermaid
 flowchart LR
@@ -37,7 +38,7 @@ flowchart LR
             VALIDATE["IR + validación"]
             TOPOLOGY["Validación topológica<br/>orden de nodos"]
             EMIT["Emitter<br/>pandas · Polars"]
-            ARTIFACT["Artefacto ejecutable<br/>main.py + manifest.json"]
+            ARTIFACT["Artefacto ejecutable<br/>&lt;pipeline_id&gt;.py + manifest.json"]
             CLEAN -->|"pipeline normalizado"| VALIDATE
             VALIDATE -->|"plan validado"| TOPOLOGY
             TOPOLOGY -->|"plan ordenado"| EMIT
@@ -77,7 +78,7 @@ flowchart LR
         KAFKA_EXEC[("Kafka topic<br/>pipeline.executions")]
         KAFKA_EVENTS[("Kafka topic<br/>pipeline.events")]
 
-        ARTIFACT -->|"devuelve main.py + manifest"| DATA_INTEGRATION
+        ARTIFACT -->|"devuelve &lt;pipeline_id&gt;.py + manifest"| DATA_INTEGRATION
         DATA_INTEGRATION -->|"publica artefacto inmutable"| ARTIFACT_STORE
         ARTIFACT_STORE -->|"URI + manifest SHA-256"| REQUEST
         PRODUCER -->|"produce task"| KAFKA_EXEC
@@ -127,7 +128,7 @@ flowchart LR
    `operations`. DataIntegration obtiene sus respuestas JSON y llama a
    `compile(pipeline, target)`. En el Mermaid, la flecha termina en `CLEAN`,
    primer paso del módulo builder.
-3. **Artefacto:** el builder devuelve `main.py` y `manifest.json` a
+3. **Artefacto:** el builder devuelve `<pipeline_id>.py` y `manifest.json` a
    DataIntegration. DataIntegration los publica en Artifact Store y añade a la
    solicitud el URI y el SHA-256 del manifest.
 4. **Task Kafka:** el flujo interno `REQUEST → PRODUCER` construye el mensaje;
@@ -169,13 +170,15 @@ no significan un segundo tipo de mensaje.
 ## Estado de integración
 
 - **Implementado en este repositorio:**
-  - `script-builder/src`: DAG → plan validado y ordenado → `main.py` +
+  - `script-builder/src`: respuestas de la API guardadas en `dag/` →
+    `pipeline_clean` → plan validado y ordenado → `<pipeline_id>.py` +
     `manifest.json` para Pandas o Polars.
   - `workers/src`: emulación local de los workers. Verifica el manifest y los
-    hashes, y ejecuta el script.
+    hashes, resuelve la ruta del archivo de entrada y ejecuta el script.
 - **Pendiente de integración:**
-  - Capturar las respuestas de la API y conectarlas con `pipeline_clean` y el
-    builder.
+  - Capturar las respuestas directamente de la API (hoy se leen de `dag/`).
+  - Resolver el ID de archivo (`archivo`) contra el servicio de archivos en lugar
+    de la ruta hardcodeada del worker.
   - Publicar el artefacto en el storage compartido.
 - **Responsabilidad de la plataforma:**
   - Solicitud de ejecución, Kafka, Job Dispatcher, Kubernetes e imágenes de los

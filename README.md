@@ -5,29 +5,27 @@ ejecuta después. Está dividido en dos partes independientes:
 
 | Carpeta | Responsabilidad |
 |---|---|
-| [`script-builder/src/`](script-builder/src) | Lee el DAG, valida su topología y genera `main.py` + `manifest.json` en `output/`. No ejecuta operaciones ni lee datasets. |
-| [`workers/src/`](workers/src) | Emula los workers de Pandas y Polars: verifica el manifest y ejecuta el `main.py` generado. |
+| [`script-builder/src/`](script-builder/src) | Lee el DAG, valida su topología y genera `<pipeline_id>.py` + `manifest.json` en `output/<pipeline_id>/`. No ejecuta operaciones ni lee datasets. |
+| [`workers/src/`](workers/src) | Emula los workers de Pandas y Polars: verifica el manifest, inyecta la ruta del archivo de entrada y ejecuta el script generado. |
 
-En la raíz se quedan los insumos y la documentación compartidos: `dag/` (JSON de
-entrada), `data/` (CSV de ejemplo), `docs/`, `catalogo_operaciones.xlsx`, este
+En la raíz se quedan los insumos y la documentación compartidos: `dag/` (respuestas
+JSON guardadas de los endpoints), `data/` (archivos de entrada), `docs/`, `catalogo_operaciones.xlsx`, este
 README, `requirements.txt` y `pytest.ini`.
 
 ```text
-dag/pipeline_test.json
-    → script_builder.__main__     (CLI: lee el JSON)
+dag/*.json (respuestas de la API: pipelines, nodes, edges, operation)
+    → script_builder.__main__     (CLI)
+    → load_api_pipeline           (dag/pipeline_clean.py: clasifica por `code`, normaliza al formato del builder)
     → build_artifact              (codegen/builder.py)
         → build_plan              (ir/plan.py: catálogo, validaciones, orden topológico de dag/pipeline_graph.py)
         → PandasEmitter | PolarsEmitter (codegen/: extrae solo las operaciones usadas)
         → build_manifest          (artifacts/manifest.py: hashes, perfil, esquema de parámetros)
-    → output/pipeline_test/main.py + manifest.json
-    → workers: load_artifact (verifica) → PandasWorker | PolarsWorker → python main.py
+    → output/<pipeline_id>/<pipeline_id>.py + manifest.json
+    → workers: load_artifact (verifica) → ruta de entrada (workers/settings.py) → PandasWorker | PolarsWorker → python <pipeline_id>.py
 ```
 
-Por ahora el DAG se lee desde JSON. Más adelante se capturará de la API
-(endpoints de nodes, edges y operation). El flujo `pipeline_clean`
-([`script_builder/dag/pipeline_clean.py`](script-builder/src/script_builder/dag/pipeline_clean.py))
-convierte esas respuestas en `dag/pipeline_clean.json`. Hoy está **desconectado**
-del flujo principal y se invoca a mano con `export_clean_pipeline("dag")`.
+El builder **no consulta ningún endpoint**: solo consume las respuestas JSON que
+ya están guardadas en `dag/` (ver [DAG desde las respuestas de la API](#dag-desde-las-respuestas-de-la-api)).
 
 Diagramas: [docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md](docs/ARCHITECTURE_DAG_SCRIPT_BUILDER.md)
 (contexto en la arquitectura), [docs/REPOSITORY_FLOW.md](docs/REPOSITORY_FLOW.md)
@@ -50,6 +48,7 @@ script-builder/
       operations/pandas/        # implementaciones fuente que el emitter pandas copia al script
       operations/polars/        # implementaciones fuente que el emitter polars copia al script
   tests/
+    fixtures/                   # DAG de ejemplo en el formato interno (pipeline_test, pipeline, pipeline_codegen)
 workers/
   requirements-pandas.txt
   requirements-polars.txt
@@ -57,8 +56,9 @@ workers/
     main.py                     # entrada: python workers/src/main.py
     workers/
       __main__.py               # CLI del worker
+      settings.py               # RUTA HARDCODEADA del archivo de entrada (INPUT_FILE_PATH / INPUT_FILE_PATHS)
       artifact.py               # load_artifact: valida manifest y hashes SHA-256
-      base.py                   # Worker.run: comprueba framework y módulos, lanza main.py sin shell
+      base.py                   # Worker.run: comprueba framework y módulos, inyecta rutas, lanza <pipeline_id>.py sin shell
       pandas_worker.py, polars_worker.py
   tests/
 ```
@@ -73,34 +73,54 @@ este repositorio, solo el framework.
 ```bash
 python -m pip install -r requirements.txt   # builder + ambos workers + pytest
 
-# 1. Generar el script (por defecto: dag/pipeline_test.json → output/pipeline_test/, pandas)
+# 1. Generar el script (por defecto: dag/ → output/<pipeline_id>/<pipeline_id>.py, pandas)
 python script-builder/src/main.py
-python script-builder/src/main.py --framework polars --output-dir output/pipeline_test_polars
-python script-builder/src/main.py dag/pipeline_codegen.json --pipeline-id orders --pipeline-version 2 --notebook
+python script-builder/src/main.py --framework polars --notebook
+python script-builder/src/main.py script-builder/tests/fixtures/pipeline_codegen.json --pipeline-id orders
 
-# 2. Ejecutarlo con el worker (por defecto: output/pipeline_test, worker según el manifest)
+# 2. Ejecutarlo con el worker (por defecto: el último artefacto generado en output/)
 python workers/src/main.py
-python workers/src/main.py output/pipeline_test_polars --worker polars
+python workers/src/main.py e6b4f425-1133-4cae-97ec-442f4cf2a24b
+python workers/src/main.py output/orders --worker pandas
 ```
 
 Opciones del builder:
 
 | Opción | Por defecto |
 |---|---|
-| `pipeline` | `dag/pipeline_test.json` |
-| `--output-dir` | `output/<nombre-del-JSON>/` (se reemplaza en cada ejecución) |
-| `--pipeline-id` | nombre del JSON |
-| `--pipeline-version` | `1` |
+| `pipeline` | carpeta `dag/` (respuestas de la API); también acepta un JSON ya normalizado |
+| `--output-dir` | `output/<pipeline_id>/` (se reemplaza en cada ejecución) |
+| `--pipeline-id` | carpeta: obligatorio solo si hay varios pipelines; archivo: su `pipeline_id` o el nombre del JSON |
+| `--pipeline-version` | `current_version_id` del pipeline; si no hay, `1` |
 | `--framework` | `pandas` (`pandas` o `polars`) |
 | `--engine` | `python` |
-| `--notebook` | también genera `pipeline.ipynb` |
+| `--notebook` | también genera `<pipeline_id>.ipynb` |
 
-Opciones del worker: `artifact` (por defecto `output/pipeline_test`),
-`--worker` (por defecto el framework del manifest), y `--params-file`,
-`--datasources-file` y `--base-dir`. `--base-dir` es la base de las rutas
-relativas del DAG; por defecto, la raíz del repositorio.
+Opciones del worker: `artifact` (carpeta del artefacto o `pipeline_id` dentro
+de `output/`; por defecto, el último generado), `--worker` (por defecto el
+framework del manifest), y `--params-file`, `--datasources-file` y `--base-dir`.
+`--base-dir` es la base de las rutas relativas del DAG; por defecto, la raíz del
+repositorio.
 
-`pipeline_test.json` lee `data/orders_south_2018.csv` y `data/Orders_Central.csv`.
+### Archivo de entrada del worker (ruta hardcodeada)
+
+Los nodos "Leer archivo" de la API solo traen el ID del archivo (`archivo`), no
+su ruta. El worker la toma de
+[`workers/src/workers/settings.py`](workers/src/workers/settings.py):
+
+```python
+INPUT_FILE_PATH = REPOSITORY_ROOT / "data" / "netflix_titles.xlsx"   # lo leen todos los nodos de lectura
+INPUT_FILE_PATHS: dict[str, Path] = {}                                # opcional: {file_id: ruta} por archivo
+```
+
+El manifest lista esos archivos en `input_files` (`file_<id>` → ID). El worker
+pasa la ruta al script como parámetro `file_<id>`; un `--params-file` explícito
+tiene prioridad. Si el archivo no existe, el worker falla antes de ejecutar.
+`read_csv` lee `.csv`, `.xlsx`/`.xlsm`/`.xls` (Excel) y `.parquet` según la
+extensión; Polars usa `fastexcel` para Excel.
+
+El fixture `script-builder/tests/fixtures/pipeline_test.json` lee `data/orders_south_2018.csv` y
+`data/Orders_Central.csv`.
 Los une por `Customer ID`, aplica operaciones de texto, numéricas, lógicas y de
 fecha, y escribe `output/processed_orders.csv` (1627 filas, 10 columnas). Pandas
 y Polars producen el mismo CSV; una prueba end-to-end lo verifica.
@@ -108,7 +128,7 @@ y Polars producen el mismo CSV; una prueba end-to-end lo verifica.
 El script también se ejecuta sin worker:
 
 ```bash
-python output/pipeline_test/main.py --base-dir . [--params-file p.json] [--datasources-file d.json]
+python output/<pipeline_id>/<pipeline_id>.py --base-dir . --params-file p.json [--datasources-file d.json]
 ```
 
 El proceso imprime un resumen JSON con filas y columnas por nodo. Los errores se
@@ -123,9 +143,9 @@ from pathlib import Path
 from script_builder.codegen import PandasEmitter, build_artifact
 from script_builder.ir import build_plan
 
-pipeline = json.loads(Path("dag/pipeline_test.json").read_text())
+pipeline = json.loads(Path("script-builder/tests/fixtures/pipeline_test.json").read_text())
 plan = build_plan(pipeline, engine="python", framework="pandas")   # IR ordenado y validado
-script = PandasEmitter().emit(plan)                                 # código fuente de main.py
+script = PandasEmitter().emit(plan)                                 # código fuente de demo.py
 manifest = build_artifact(pipeline, "output/demo", pipeline_id="demo", pipeline_version="1")
 ```
 
@@ -219,8 +239,8 @@ traduce a expresiones nativas. No usa `eval`. Se admiten:
 
 Se rechaza todo lo demás.
 
-`--notebook` añade `pipeline.ipynb` con tres celdas: definiciones, parámetros y
-datasources editables, y ejecución. El worker sigue ejecutando `main.py`.
+`--notebook` añade `<pipeline_id>.ipynb` con tres celdas: definiciones, parámetros y
+datasources editables, y ejecución. El worker sigue ejecutando `<pipeline_id>.py`.
 
 ## Manifest y responsabilidades del worker
 
@@ -228,8 +248,9 @@ datasources editables, y ejecución. El worker sigue ejecutando `main.py`.
 
 - Identidad y versión del pipeline, versión del IR y hash SHA-256 del plan.
 - Destino (`engine`, `framework`), perfil `python-<framework>-v1` y dependencias.
-- Entrypoint `main.py`, hash SHA-256 de cada archivo y los argumentos del script.
+- Entrypoint `<pipeline_id>.py`, hash SHA-256 de cada archivo y los argumentos del script.
 - JSON Schema de parámetros nombrados, puertos externos y nodos terminales.
+- `input_files`: parámetros `file_<id>` que el worker debe resolver a una ruta.
 
 La generación es determinista: no incluye timestamps, UUID ni rutas locales. Los
 hashes verifican integridad, **no autenticidad**.
@@ -237,52 +258,54 @@ hashes verifican integridad, **no autenticidad**.
 El worker emulado ([`workers/src/workers`](workers/src/workers)) hace lo mínimo
 que haría el pod:
 
-1. `load_artifact` lee `manifest.json`, exige `manifest_version` `1`, el
-   entrypoint `main.py`, solo archivos permitidos, hashes correctos y engine
+1. `load_artifact` lee `manifest.json`, exige `manifest_version` `1`, un
+   entrypoint `.py` simple listado en `files`, solo archivos permitidos, hashes correctos y engine
    `python`.
 2. `Worker.run` rechaza artefactos de otro framework y comprueba que estén
    instalados los módulos requeridos (`pandas`/`numpy` o `polars`).
-3. Ejecuta `python main.py --params-file … --datasources-file … --base-dir …`
+3. Resuelve las rutas de `input_files` con `workers/settings.py` y las escribe
+   en un `--params-file` temporal.
+4. Ejecuta `python <pipeline_id>.py --params-file … --datasources-file … --base-dir …`
    sin shell, con `cwd` en el artefacto, y devuelve el exit code.
 
 Dispatcher, Kafka y Kubernetes quedan fuera de este repositorio.
 
-## DAG JSON normalizado (flujo desconectado)
+## DAG desde las respuestas de la API
 
-`export_clean_pipeline(dag_directory)` lee las respuestas guardadas en `dag/`:
-`nodes.json`, `edges.json` y un archivo por operación, nombrado con su ID. Llama
-a `merge_pipeline_clean(edges_json, nodes_json, operations_json)` y escribe
-`dag/pipeline_clean.json`:
+`dag/` contiene las respuestas guardadas de los endpoints (no se hace ninguna
+consulta). El nombre de archivo no importa: cada respuesta se clasifica por su
+`code`:
 
-```bash
-PYTHONPATH=script-builder/src python -c "from script_builder.dag.pipeline_clean import export_clean_pipeline; export_clean_pipeline('dag')"
-```
+| `code` | Contenido |
+|---|---|
+| `PIPELINE_RETRIEVED` | pipelines (`id`, `name`, `current_version_id`) |
+| `PIPELINE_NODES_LIST_RETRIEVED` | nodos con puertos, operación y parámetros |
+| `PIPELINE_EDGES_LIST_RETRIEVED` | aristas entre puertos |
+| `OPERATION_RETRIEVED` | una operación (el `name` se usa como operación del catálogo) |
 
-La salida tiene el mismo formato que `dag/pipeline_test.json`: listas `nodes` y
-`edges`. Cada nodo conserva `id`, `input_ports`/`output_ports` (`id`, `ordinal`),
-`operation` (`id`, `name`) y `parameters` como objeto. Los parámetros se aceptan
-como objeto o como lista de registros `{"name": "column", "value": "sales"}`.
-Las listas vacías o los parámetros ausentes se convierten en `{}`. Los nombres
-duplicados o los registros sin `name`/`value` provocan errores. Se omiten los
-elementos eliminados y las aristas conectadas a ellos.
+Los archivos vacíos y los `code` desconocidos (p. ej. `OPERATION__TEMPLATE_RETRIEVED`)
+se ignoran; un JSON inválido o `success: false` provoca un error.
+`load_api_pipeline("dag")` hace la conversión:
 
-Los snapshots de `dag/` forman un DAG funcional: tres joins (`Nodo_4`, `name_1`,
-`inner_join`) y un `aggregate` (nodo `avg`: media de `Sales_south_base` por
-`Segment_south_base`), seguido de `guardar_csv`. Los tres puertos de entrada
-externos se mapean a CSV en `dag/pipeline_clean_datasources.json`. Al ejecutar el
-worker, el resultado se guarda en `output/segment_sales_by_segment.csv`:
+- Filtra nodos y aristas por la versión actual del pipeline y omite los eliminados.
+- Convierte los valores tipados (`value_string`, `value_int`, `value_bool`, …) y
+  los nombres visibles de los parámetros (`Archivo`, `Nueva columna`, …) a los
+  nombres del catálogo (`file_id`, `create_new_column`, …).
+- `archivo` se convierte en `{"$param": "file_<id>"}` sobre `filepath` y se
+  lista en `input_files` para que el worker ponga la ruta.
+- Un `write_csv` sin ruta escribe en `output/<pipeline_id>/<node_id>.csv`.
 
-```bash
-python script-builder/src/main.py dag/pipeline_clean.json
-python script-builder/src/main.py dag/pipeline_clean.json --framework polars
-python workers/src/main.py output/pipeline_clean --datasources-file dag/pipeline_clean_datasources.json
-```
+El pipeline actual (`Netflix0`, `e6b4f425-1133-4cae-97ec-442f4cf2a24b`) lee el
+archivo configurado, crea `title_lower` con `lowercase` y escribe
+`output/e6b4f425-1133-4cae-97ec-442f4cf2a24b/198e4b46-3715-4890-bb19-41ba6ccd81e2.csv`.
 
-El flujo principal sigue usando `dag/pipeline_test.json` por defecto.
+`export_clean_pipeline("dag")` escribe el resultado normalizado en
+`dag/pipeline_clean.json` (útil para inspeccionarlo); el builder lo ignora al
+leer la carpeta.
 
-Otros DAG de ejemplo: `dag/pipeline.json` (estructural),
-`dag/pipeline_codegen.json` (parametrizado con `$param`) y
-`dag/pipeline_join_text_numeric.json`.
+Otros DAG de ejemplo en formato interno, usados por las pruebas:
+`script-builder/tests/fixtures/pipeline_test.json`, `pipeline.json`
+(estructural) y `pipeline_codegen.json` (parametrizado con `$param`).
 
 ## Pruebas
 

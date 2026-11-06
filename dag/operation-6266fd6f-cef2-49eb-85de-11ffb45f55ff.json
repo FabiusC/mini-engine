@@ -1,0 +1,53 @@
+{
+    "success": true,
+    "message": "Operation Template retrieved successfully.",
+    "code": "OPERATION__TEMPLATE_RETRIEVED",
+    "data": {
+        "id": "6266fd6f-cef2-49eb-85de-11ffb45f55ff",
+        "created_at": "2026-10-29T01:44:43.298753Z",
+        "edited_at": "2026-10-29T01:44:43.298753Z",
+        "is_deleted": false,
+        "deleted_at": null,
+        "category_template_id": "34da2af0-099e-4de4-9e2d-8b4994bc7ca6",
+        "name": "Leer archivo",
+        "label": null,
+        "description": "Permite leer un archivo ya subido al DSM",
+        "input_ports": [],
+        "output_ports": [
+            {
+                "id": "317d3e3f-4811-4a84-ac60-a3a0cf04b25c",
+                "created_at": "2026-10-29T02:18:27.942242Z",
+                "edited_at": "2026-10-29T02:18:27.942242Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "operation_template_id": "6266fd6f-cef2-49eb-85de-11ffb45f55ff",
+                "ordinal": 0,
+                "position": "right",
+                "max_connections": 2147483647,
+                "description": null
+            }
+        ],
+        "parameter_templates": [
+            {
+                "id": "477c0e4e-6a88-4e80-97c1-3b32e86a6ed6",
+                "created_at": "2026-10-29T02:18:01.697798Z",
+                "edited_at": "2026-10-29T02:18:01.697798Z",
+                "is_deleted": false,
+                "deleted_at": null,
+                "operation_template_id": "6266fd6f-cef2-49eb-85de-11ffb45f55ff",
+                "parent_id": null,
+                "data_type_id": "610afd29-b147-4ab1-ac69-5e27d58bc33d",
+                "ui_widget_id": "20921145-635f-4a04-b1cf-f66bf4eb1c03",
+                "name": "archivo",
+                "label": null,
+                "required": true,
+                "ordinal": 0,
+                "description": null,
+                "default": null,
+                "default_items": [],
+                "constraints": [],
+                "children": []
+            }
+        ]
+    }
+}

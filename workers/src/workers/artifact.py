@@ -5,7 +5,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-ALLOWED_FILES = ("main.py", "pipeline.ipynb")
+# Artifact files are plain file names (no directories) with one of these extensions.
+ALLOWED_SUFFIXES = (".py", ".ipynb")
+
+
+def _is_artifact_file(name: Any) -> bool:
+	return (
+		isinstance(name, str) and Path(name).name == name and "\\" not in name
+		and not name.startswith(".") and Path(name).suffix in ALLOWED_SUFFIXES
+	)
 
 
 def load_artifact(directory: str | Path) -> dict[str, Any]:
@@ -17,17 +25,24 @@ def load_artifact(directory: str | Path) -> dict[str, Any]:
 	manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 	if not isinstance(manifest, dict) or manifest.get("manifest_version") != "1":
 		raise ValueError("Unsupported artifact manifest")
-	if manifest.get("entrypoint") != "main.py":
-		raise ValueError("Only main.py entrypoints are supported")
+	# The entrypoint is the generated script, named after the pipeline id (<pipeline_id>.py).
+	entrypoint = manifest.get("entrypoint")
+	if not _is_artifact_file(entrypoint) or not entrypoint.endswith(".py"):
+		raise ValueError(f"Invalid entrypoint: {entrypoint!r}")
 	files = manifest.get("files")
-	if not isinstance(files, list) or "main.py" not in [item.get("path") for item in files if isinstance(item, dict)]:
-		raise ValueError("Manifest must list main.py")
+	if not isinstance(files, list) or entrypoint not in [item.get("path") for item in files if isinstance(item, dict)]:
+		raise ValueError(f"Manifest must list its entrypoint {entrypoint}")
 	for item in files:
-		if not isinstance(item, dict) or item.get("path") not in ALLOWED_FILES:
+		if not isinstance(item, dict) or not _is_artifact_file(item.get("path")):
 			raise ValueError(f"Unexpected artifact file record: {item!r}")
 		content = (directory / item["path"]).read_bytes()
 		if hashlib.sha256(content).hexdigest() != item.get("sha256"):
 			raise ValueError(f"Artifact integrity check failed: {item['path']}")
+	input_files = manifest.get("input_files", {})
+	if not isinstance(input_files, dict) or not all(
+		isinstance(name, str) and isinstance(file_id, str) for name, file_id in input_files.items()
+	):
+		raise ValueError("Manifest input_files must map parameter names to file ids")
 	target = manifest.get("target")
 	if not isinstance(target, dict) or target.get("engine") != "python":
 		raise ValueError("Manifest target must be a python engine")

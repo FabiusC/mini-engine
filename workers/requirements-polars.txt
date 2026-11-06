@@ -1,1 +1,3 @@
 polars>=1.0.0
+# Excel input files (polars.read_excel default engine).
+fastexcel>=0.11.0
