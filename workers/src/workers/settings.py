@@ -7,7 +7,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT_DIR = REPOSITORY_ROOT / "output"
 
 # File read by every DAG "Leer archivo" node (its "archivo" parameter holds a DSM file id).
-INPUT_FILE_PATH = REPOSITORY_ROOT / "data" / "netflix_titles.xlsx"
+INPUT_FILE_PATH = REPOSITORY_ROOT / "data" / "96bea6b5-f60a-419b-ac7f-eba00eb685c5.xlsx"
 
 # Optional per-file overrides keyed by DSM file id, for pipelines that read several files.
 INPUT_FILE_PATHS: dict[str, Path] = {}

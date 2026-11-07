@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
 	args = parser.parse_args(argv)
 	artifact = resolve_artifact(args.artifact)
 	worker_name = args.worker or load_artifact(artifact)["target"]["framework"]
+	print(artifact)
+	print(args)
 	return WORKERS[worker_name]().run(
 		artifact,
 		params_file=args.params_file,
