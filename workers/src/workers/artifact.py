@@ -35,7 +35,8 @@ def load_artifact(directory: str | Path) -> dict[str, Any]:
 	for item in files:
 		if not isinstance(item, dict) or not _is_artifact_file(item.get("path")):
 			raise ValueError(f"Unexpected artifact file record: {item!r}")
-		content = (directory / item["path"]).read_bytes()
+		# Tolerate CRLF: the files are text, and Windows editors/copy-paste rewrite LF as CRLF. Any other byte must match.
+		content = (directory / item["path"]).read_bytes().replace(b"\r\n", b"\n")
 		if hashlib.sha256(content).hexdigest() != item.get("sha256"):
 			raise ValueError(f"Artifact integrity check failed: {item['path']}")
 	input_files = manifest.get("input_files", {})
